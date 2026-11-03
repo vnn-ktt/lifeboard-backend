@@ -1,0 +1,36 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import type { Environment } from './config/environment';
+import { validateEnvironment } from './config/environment';
+import { databaseOptions } from './database/database-options';
+import { HealthModule } from './health/health.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+      validate: validateEnvironment,
+    }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        ...databaseOptions({
+          DB_HOST: config.getOrThrow<Environment['DB_HOST']>('DB_HOST'),
+          DB_PORT: config.getOrThrow<Environment['DB_PORT']>('DB_PORT'),
+          DB_USER: config.getOrThrow<Environment['DB_USER']>('DB_USER'),
+          DB_PASSWORD: config.getOrThrow<Environment['DB_PASSWORD']>('DB_PASSWORD'),
+          DB_NAME: config.getOrThrow<Environment['DB_NAME']>('DB_NAME'),
+          DB_POOL_SIZE: config.getOrThrow<Environment['DB_POOL_SIZE']>('DB_POOL_SIZE'),
+          DB_SSL: config.getOrThrow<Environment['DB_SSL']>('DB_SSL'),
+        }),
+        autoLoadEntities: true,
+        retryAttempts: 5,
+        retryDelay: 1_500,
+      }),
+    }),
+    HealthModule,
+  ],
+})
+export class AppModule {}
