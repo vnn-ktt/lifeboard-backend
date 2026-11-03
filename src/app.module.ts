@@ -5,6 +5,8 @@ import type { Environment } from './config/environment';
 import { validateEnvironment } from './config/environment';
 import { databaseOptions } from './database/database-options';
 import { HealthModule } from './health/health.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { HealthModule } from './health/health.module';
       }),
     }),
     HealthModule,
+    UsersModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

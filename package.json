@@ -1,6 +1,6 @@
 {
   "name": "lifeboard-backend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -14,7 +14,8 @@
     "db:migrate": "node --env-file=.env -r ts-node/register ./node_modules/typeorm/cli.js migration:run -d src/database/data-source.ts",
     "db:revert": "node --env-file=.env -r ts-node/register ./node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts",
     "db:generate": "node --env-file=.env -r ts-node/register ./node_modules/typeorm/cli.js migration:generate -d src/database/data-source.ts",
-    "db:migrate:prod": "node ./node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js"
+    "db:migrate:prod": "node ./node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js",
+    "test": "node --test --require ts-node/register tests/password.test.ts tests/validation.test.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -25,11 +26,13 @@
     "pg": "^8.16.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "@nestjs/throttler": "^6.7.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "@types/express": "^5.0.0"
   }
 }

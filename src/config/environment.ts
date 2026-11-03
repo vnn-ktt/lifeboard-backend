@@ -10,6 +10,8 @@ export type Environment = {
   DB_NAME: string;
   DB_POOL_SIZE: number;
   DB_SSL: boolean;
+  WEB_ORIGIN: string;
+  COOKIE_SECURE: boolean;
 };
 
 /** One validation routine for NestJS startup and standalone TypeORM CLI. */
@@ -47,6 +49,15 @@ export function validateEnvironment(raw: Record<string, unknown>): Environment {
     throw new Error('NODE_ENV must be development, test, or production');
   }
 
+  function checkedOrigin(value: string): string {
+    let url: URL;
+    try { url = new URL(value); } catch { throw new Error('WEB_ORIGIN must be a valid URL origin'); }
+    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== value) {
+      throw new Error('WEB_ORIGIN must be an exact http(s) origin without trailing slash/path');
+    }
+    return value;
+  }
+
   return {
     NODE_ENV: nodeEnv,
     PORT: integerValue('PORT', 3000, 1, 65535),
@@ -57,5 +68,7 @@ export function validateEnvironment(raw: Record<string, unknown>): Environment {
     DB_NAME: stringValue('DB_NAME'),
     DB_POOL_SIZE: integerValue('DB_POOL_SIZE', 10, 1, 100),
     DB_SSL: booleanValue('DB_SSL', false),
+    WEB_ORIGIN: checkedOrigin(stringValue('WEB_ORIGIN', 'http://localhost:8080')),
+    COOKIE_SECURE: booleanValue('COOKIE_SECURE', nodeEnv === 'production'),
   };
 }
