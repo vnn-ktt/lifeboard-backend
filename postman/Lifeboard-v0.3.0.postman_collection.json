@@ -1,0 +1,599 @@
+{
+  "info": {
+    "name": "Lifeboard Backend v0.3.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Backend-only. Start by logging in; Postman handles HttpOnly cookies for localhost. Create a second user manually to test isolation."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "email",
+      "value": "ivan@example.com"
+    },
+    {
+      "key": "password",
+      "value": "replace-with-your-existing-password"
+    },
+    {
+      "key": "goalId",
+      "value": ""
+    },
+    {
+      "key": "childGoalId",
+      "value": ""
+    },
+    {
+      "key": "areaId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "01 Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Areas",
+      "item": [
+        {
+          "name": "02 List areas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/areas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "areas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"8 built-in areas\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json().filter(a => [\"dogs\", \"career\", \"leadership\", \"health\", \"finance\", \"relationships\", \"learning\", \"other\"].includes(a.id))).to.have.length(8); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Create custom area",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/areas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "areas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Личные проекты\",\n  \"accent\": \"#5b9478\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"areaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete custom area",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/areas/{{areaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "areas",
+                "{{areaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204 (unless used)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Goals",
+      "item": [
+        {
+          "name": "04 Create parent goal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"areaId\": \"career\",\n  \"title\": \"Запустить Lifeboard API\",\n  \"description\": \"Backend MVP\",\n  \"horizon\": \"quarter\",\n  \"target\": 12,\n  \"parentId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"goalId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Create child goal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"areaId\": \"career\",\n  \"title\": \"CRUD для целей\",\n  \"description\": \"\",\n  \"horizon\": \"month\",\n  \"target\": 5,\n  \"parentId\": \"{{goalId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"childGoalId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 List goals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Read child goal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{childGoalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{childGoalId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Child belongs to parent\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json().parentId).to.eql(pm.collectionVariables.get(\"goalId\")); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Reject cycle: make parent child of its child",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parentId\": \"{{childGoalId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400 cycle\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Set focus",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals/focus",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "focus"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goalIds\": [\n    \"{{goalId}}\",\n    \"{{childGoalId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Get focus",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/focus",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "focus"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"2 focus goals\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json().goalIds).to.have.length(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Delete parent goal",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Child survives parent removal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{childGoalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{childGoalId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Child detached\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json().parentId).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Vision",
+      "item": [
+        {
+          "name": "13 Set vision",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/life/vision",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "life",
+                "vision"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vision\": \"Больше свободы и времени на важные дела.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Read vision",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/life/vision",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "life",
+                "vision"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

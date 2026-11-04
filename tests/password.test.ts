@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { hashPassword, verifyPassword } from '../src/auth/password';
-import { createSessionToken, hashSessionToken, readSessionCookie, SESSION_COOKIE } from '../src/auth/cookie';
+import { hashPassword, verifyPassword } from '@/auth/lib/password';
+import { createSessionToken, hashSessionToken, readSessionCookie, SESSION_COOKIE } from '@/auth/lib/cookie';
 
 test('scrypt: correct and incorrect passwords', async () => {
   const hash = await hashPassword('this is a strong passphrase');

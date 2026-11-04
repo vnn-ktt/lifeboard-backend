@@ -1,18 +1,26 @@
 import 'reflect-metadata';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NextFunction, Request, Response } from 'express';
-import { AppModule } from './app.module';
+import { AppModule } from '@/app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api/v1');
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    transformOptions: { enableImplicitConversion: false },
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    stopAtFirstError: true,
+    validationError: { target: false, value: false },
+  }));
   app.enableShutdownHooks();
 
   const config = app.get(ConfigService);
   const webOrigin = config.getOrThrow<string>('WEB_ORIGIN');
-  app.enableCors({ origin: webOrigin, credentials: true, methods: ['GET', 'POST', 'OPTIONS'] });
+  app.enableCors({ origin: webOrigin, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] });
 
   // Cookie-based auth requires a CSRF defense. Browser cross-origin unsafe
   // requests are only accepted from our explicitly configured web origin.

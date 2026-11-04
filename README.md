@@ -1,105 +1,177 @@
-# Lifeboard Backend v0.2.0 — Users & Auth
+# Lifeboard Backend v0.3.1 — modular architecture refactor
 
-NestJS 11 / PostgreSQL 17 / TypeORM / REST / Docker; Bun for package management, Node.js 24 for runtime. The existing Vue frontend is unchanged.
+NestJS 11 · TypeORM · PostgreSQL 17 · REST · Bun package manager · Node.js 24 runtime.
 
-## What is included
+**Frontend is unchanged.** This release reorganizes v0.3.0 source files without changing REST routes, response shapes, PostgreSQL schema, or migration history.
 
-- User and user session tables, reversible TypeORM migration.
-- `POST /api/v1/auth/register` — create user, issue HttpOnly cookie (`201`).
-- `POST /api/v1/auth/login` — email/password, issue HttpOnly cookie (`200`).
-- `POST /api/v1/auth/logout` — revoke current session and clear cookie (`204`).
-- `GET /api/v1/users/me` — current user (`200`; otherwise `401`).
-- `GET /api/v1/health/live` and `/ready` — public.
-- Scrypt passwords with random salt, SHA-256 digests of random session tokens in PostgreSQL, session TTL 7 days.
-- Default-deny auth guard, CORS allowlist, browser Origin/Fetch Metadata checks on unsafe requests, rate limits (`@nestjs/throttler`).
+## Structure
 
-No JWT in localStorage; no external session store, Redis, mail server, or additional microservices.
+```text
+src/
+├── areas/
+│   ├── areas.module.ts
+│   ├── areas.controller.ts
+│   ├── areas.service.ts
+│   ├── dto/
+│   │   ├── create-area.dto.ts
+│   │   └── area-response.dto.ts
+│   └── entities/life-area.entity.ts
+├── goals/
+│   ├── goals.module.ts
+│   ├── goals.controller.ts
+│   ├── goals.service.ts
+│   ├── dto/
+│   │   ├── create-goal.dto.ts
+│   │   ├── update-goal.dto.ts
+│   │   ├── set-focus.dto.ts
+│   │   └── goal-response.dto.ts
+│   ├── entities/life-goal.entity.ts
+│   └── domain/goal-rules.ts
+├── life/
+│   ├── life.module.ts
+│   ├── life.controller.ts
+│   ├── life.service.ts
+│   ├── dto/set-vision.dto.ts
+│   └── entities/user-life-settings.entity.ts
+├── auth/
+│   ├── auth.module.ts
+│   ├── auth.controller.ts
+│   ├── auth.service.ts
+│   ├── dto/
+│   ├── entities/
+│   ├── guards/
+│   ├── decorators/
+│   ├── services/
+│   ├── lib/
+│   └── types/
+├── users/
+│   ├── users.module.ts
+│   ├── users.controller.ts
+│   ├── users.service.ts
+│   ├── dto/
+│   ├── entities/
+│   └── types/
+├── common/
+│   ├── pipes/non-empty-body.pipe.ts
+│   └── user-write-lock/
+│       ├── user-write-lock.module.ts
+│       └── user-write-lock.service.ts
+├── utils/
+│   ├── type-guards.ts
+│   └── string-transformers.ts
+├── config/
+├── database/
+│   ├── migrations/ (unchanged)
+│   ├── data-source.ts
+│   └── database-options.ts
+├── health/
+├── main.ts
+└── app.module.ts
+```
 
-## Development (existing v0.1.0 database is preserved)
+Only `*.module.ts`, `*.controller.ts`, `*.service.ts` live at the root of each **feature** module. The `health` module has no service because it performs one simple PostgreSQL readiness check.
 
-Use Node.js 24 and Bun. From repository root:
+`Areas`, `Goals`, and `Life` are independent Nest modules, registered individually in `AppModule`. Goal ownership, cross-user parent restrictions, cyclic ancestry checks, focus ordering, and area ownership rules remain in place.
+
+`UserWriteLockModule` is an imported shared infrastructure module, **not** a replacement for the feature modules. It serializes per-user mutations in PostgreSQL.
+
+## Installation after upgrading from v0.3.0
+
+Back up your current repo and database. Merge or replace the source files with this archive. **Do not replace your existing `.env`, and do not delete Docker volumes.** The uploaded `.env` is intentionally excluded from this archive for security.
+
+New packages:
+
+- runtime: `class-validator`, `class-transformer` (standard Nest `ValidationPipe`)
+- development: `tsconfig-paths` (resolve `@/` in `ts-node`), `tsc-alias` (rewrite aliases after compiling to JS)
+
+The archive contains the **previous `bun.lock` as a baseline**; it cannot be regenerated here because the package registry is not accessible. **It is outdated relative to the new `package.json` until you run `bun install`.** Do this once on your machine and commit the updated lockfile before Docker builds.
 
 ```sh
-# Copy the new code over your v0.1.0 project, but keep your existing .env and data.
-bun install           # regenerate bun.lock to include new dependencies; commit bun.lock
-bun run db:migrate   # applies ONLY the new migration
+bun install
 bun run typecheck
 bun run test
+bun run build
+bun run db:migrate
 bun run start:dev
 ```
 
-If this is a fresh checkout: copy `.env.example` to `.env`, change DB_PASSWORD, start DB via `docker compose up -d db` first. On Windows Git Bash, `cp .env.example .env` works.
-
-**Keep your existing `.env` and docker volume. Do NOT use `docker compose down -v` to upgrade.**
-
-`.env` must now include:
-
-```env
-WEB_ORIGIN=http://localhost:8080
-COOKIE_SECURE=false
-```
-
-Set WEB_ORIGIN to the actual Vue site origin (e.g. `http://localhost:5173` if Vite runs there). Use the SAME hostname for the frontend and API in local development (`localhost` vs `127.0.0.1` is not interchangeable for cookies).
-
-## Curl check (Git Bash / Linux / macOS)
-
-```bash
-# 1. Register. Saves the session cookie.
-curl -i -c cookies.txt -H 'Content-Type: application/json' \
-  -d '{"name":"Ivan","nickname":"ivan","email":"ivan@example.com","password":"change-this-passphrase"}' \
-  http://localhost:3000/api/v1/auth/register
-
-# 2. Read the protected endpoint.
-curl -i -b cookies.txt http://localhost:3000/api/v1/users/me
-
-# 3. End session.
-curl -i -b cookies.txt -c cookies.txt -X POST http://localhost:3000/api/v1/auth/logout
-
-# 4. Old session is no longer valid: expect 401.
-curl -i -b cookies.txt http://localhost:3000/api/v1/users/me
-```
-
-To test login afterward:
-
-```bash
-curl -i -c cookies.txt -H 'Content-Type: application/json' \
-  -d '{"email":"ivan@example.com","password":"change-this-passphrase"}' \
-  http://localhost:3000/api/v1/auth/login
-```
-
-The password in the example is for local testing only; use a unique strong password for real accounts.
-
-**Do not commit `cookies.txt` or `.env` to Git.** The cookie contains a bearer session secret.
-
-## Docker
-
-`Dockerfile` uses Bun in dependency stages and Node.js 24 in runtime. Docker builds require a **committed `bun.lock`**, generated by `bun install` after adjusting `package.json`. Without an up-to-date lockfile, the build deliberately fails.
+Then, if using Compose:
 
 ```sh
-docker compose up --build -d
-curl http://localhost:3000/api/v1/health/ready
+docker compose build
+docker compose up -d
+docker compose ps
 ```
 
-The migration job runs before the API is started. The DB volume remains untouched when upgrading with `up --build`.
+No new migrations have been introduced. All three original migration files are untouched. Running `db:migrate` again should report no pending migrations if v0.3.0 was already migrated.
 
-## Public contracts
+## Path alias `@/`
 
-`POST /auth/register`: `{"name":"...","nickname":"optional","email":"...","password":"minimum 12 characters"}`.
+`tsconfig.json` declares:
 
-`POST /auth/login`: `{"email":"...","password":"..."}`.
+```json
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": { "@/*": ["*"] }
+  }
+}
+```
 
-Register/login reply: `{"user":{"id":"uuid","email":"...","name":"...","nickname":"...","about":"","createdAt":"ISO date","updatedAt":"ISO date"}}`. Session token is never in JSON — only a `Set-Cookie: lifeboard.sid=...; HttpOnly; SameSite=Lax; Path=/api/v1` header.
+Use `import { User } from '@/users/entities/user.entity';` anywhere inside `src`.
 
-`GET /users/me` replies with the same `user` object (without a wrapper). No password or password hash appears in any response.
+A TypeScript compiler path alias is **not** automatically understood by Node.js. To avoid runtime `MODULE_NOT_FOUND`:
 
-## Deployment notes and limitations
+- `start:dev`, `db:migrate`, `db:revert`, `db:generate`, and `test` preload `tsconfig-paths/register` together with `ts-node/register`.
+- `build` runs `tsc` followed by `tsc-alias`, replacing `@/` paths in compiled `dist/**/*.js` with valid relative `require(...)` paths.
+- `start` and `db:migrate:prod` use Node.js directly on compiled JS and do **not** need `tsconfig-paths` in production.
 
-- Production: HTTPS with `COOKIE_SECURE=true`, exact trusted `WEB_ORIGIN`, and a correctly configured TLS reverse proxy.
-- Cookie auth requires `credentials: 'include'` on frontend fetch/Axios. The existing Vue login UI has **not** been connected: it has no password field and uses browser-local login.
-- A browser request changing state must originate from WEB_ORIGIN; `SameSite=Lax` and Origin/Fetch Metadata checks are part of CSRF protection. Non-browser scripted clients may send requests without Origin, so expose the API only with normal edge/WAF protections. This is not a substitute for comprehensive CSRF threat modeling.
-- In-memory throttling is suitable for a single API process; when scaling horizontally, move rate limits to a shared storage or enforce them at the reverse proxy.
-- No automated account email verification/password reset yet. Do not open public signups until those controls and an abuse prevention policy are in place.
-- Expired/revoked sessions remain in the DB for now; purge them periodically during maintenance (or add a cleanup job later).
-- JSON data migration and ownership of life goals will be designed separately; existing frontend data and legacy demo IDs remain unchanged.
-- Scrypt parameters are `N=32768,r=8,p=1`; Node built-in crypto avoids adding a native hashing dependency.
-- Source code was assembled offline; local `bun install`, tests, TypeScript build and a real DB integration check are mandatory before production deployment.
+After `bun run build`, check that `.js` files in `dist` no longer contain unresolved `require("@/...")` references.
+
+## Request validation
+
+`main.ts` installs one global `ValidationPipe`:
+
+```ts
+app.useGlobalPipes(new ValidationPipe({
+  transform: true,
+  transformOptions: { enableImplicitConversion: false },
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  stopAtFirstError: true,
+  validationError: { target: false, value: false },
+}));
+```
+
+Body classes live under `<module>/dto/` and use `class-validator` / `class-transformer` decorators.
+
+- Bad types and invalid fields return HTTP 400.
+- Extra body fields are rejected, not silently ignored.
+- Strings with fields that previously normalized whitespace continue to do so.
+- `PATCH /goals/:id` requires at least one property, using a small custom `NonEmptyBodyPipe`.
+- Goal UUID route parameters continue using `ParseUUIDPipe`.
+- There is no implicit number/string coercion: `"target": "10"` is rejected.
+
+`src/utils/` includes pure `isString`, `isBoolean`, `isRecord`, `isSafeInteger` and normalization helpers. Domain-specific rules (e.g. detecting cycles) remain in their domain module.
+
+## Unchanged API
+
+All paths below use `/api/v1` and authentication rules from v0.3.0:
+
+| Module | Routes |
+|---|---|
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout` |
+| Users | `GET /users/me` |
+| Areas | `GET /areas`, `POST /areas`, `DELETE /areas/:id` |
+| Goals | `GET /goals`, `POST /goals`, `GET /goals/focus`, `PUT /goals/focus`, `GET /goals/:id`, `PATCH /goals/:id`, `DELETE /goals/:id` |
+| Life | `GET /life/vision`, `PUT /life/vision` |
+| Health | `GET /health/live`, `GET /health/ready` |
+
+A Postman collection is retained under `postman/`.
+
+## Verification status
+
+- Verified: all 58 TypeScript source/test files parse, and all local `@/` and relative imports resolve to existing source paths.
+- Not verified in this environment: actual `bun install`, complete Nest TypeScript typecheck, application startup, PostgreSQL migration smoke test, Docker build, end-to-end Postman tests. Dependencies cannot be downloaded here; **run the commands above locally before treating this as a tested release**.
+
+A recommended next improvement is an integration test suite with a disposable PostgreSQL instance, without modifying the frontend.

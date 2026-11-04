@@ -2,12 +2,13 @@ import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
-import type { AuthenticatedRequest } from './authenticated-request';
-import { parseLoginInput, parseRegisterInput } from './auth.dto';
+import type { AuthenticatedRequest } from '@/auth/types/authenticated-request.type';
+import { LoginDto } from '@/auth/dto/login.dto';
+import { RegisterDto } from '@/auth/dto/register.dto';
 import { AuthService } from './auth.service';
-import { SESSION_COOKIE, sessionCookieOptions } from './cookie';
-import { Public } from './public.decorator';
-import type { PublicUser } from '../users/public-user';
+import { SESSION_COOKIE, sessionCookieOptions } from '@/auth/lib/cookie';
+import { Public } from '@/auth/decorators/public.decorator';
+import type { PublicUser } from '@/users/dto/public-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -20,8 +21,8 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post('register')
-  async register(@Body() body: unknown, @Res({ passthrough: true }) response: Response): Promise<{ user: PublicUser }> {
-    const result = await this.auth.register(parseRegisterInput(body));
+  async register(@Body() body: RegisterDto, @Res({ passthrough: true }) response: Response): Promise<{ user: PublicUser }> {
+    const result = await this.auth.register(body);
     this.setCookie(response, result.token);
     return { user: result.user };
   }
@@ -30,8 +31,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async login(@Body() body: unknown, @Res({ passthrough: true }) response: Response): Promise<{ user: PublicUser }> {
-    const result = await this.auth.login(parseLoginInput(body));
+  async login(@Body() body: LoginDto, @Res({ passthrough: true }) response: Response): Promise<{ user: PublicUser }> {
+    const result = await this.auth.login(body);
     this.setCookie(response, result.token);
     return { user: result.user };
   }

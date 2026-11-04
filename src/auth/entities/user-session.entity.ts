@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from '../users/user.entity';
+import { User } from '@/users/entities/user.entity';
 
 @Entity({ name: 'user_sessions' })
 @Index('uq_sessions_token_hash', ['tokenHash'], { unique: true })

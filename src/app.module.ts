@@ -1,20 +1,19 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import type { Environment } from './config/environment';
-import { validateEnvironment } from './config/environment';
-import { databaseOptions } from './database/database-options';
-import { HealthModule } from './health/health.module';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
+import type { Environment } from '@/config/environment';
+import { validateEnvironment } from '@/config/environment';
+import { databaseOptions } from '@/database/database-options';
+import { HealthModule } from '@/health/health.module';
+import { AuthModule } from '@/auth/auth.module';
+import { UsersModule } from '@/users/users.module';
+import { AreasModule } from '@/areas/areas.module';
+import { GoalsModule } from '@/goals/goals.module';
+import { LifeModule } from '@/life/life.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-      validate: validateEnvironment,
-    }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env', validate: validateEnvironment }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -35,6 +34,9 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     UsersModule,
     AuthModule,
+    AreasModule,
+    GoalsModule,
+    LifeModule,
   ],
 })
 export class AppModule {}

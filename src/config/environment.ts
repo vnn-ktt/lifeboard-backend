@@ -1,3 +1,5 @@
+import { isString, isBoolean, isSafeInteger } from '@/utils/type-guards';
+
 export type NodeEnvironment = 'development' | 'test' | 'production';
 
 export type Environment = {
@@ -18,7 +20,7 @@ export type Environment = {
 export function validateEnvironment(raw: Record<string, unknown>): Environment {
   function stringValue(key: string, fallback?: string): string {
     const value = raw[key] ?? fallback;
-    if (typeof value !== 'string' || value.trim().length === 0) {
+    if (!isString(value) || value.trim().length === 0) {
       throw new Error(`Missing or empty environment variable: ${key}`);
     }
     return value;
@@ -30,7 +32,7 @@ export function validateEnvironment(raw: Record<string, unknown>): Environment {
       throw new Error(`Invalid integer environment variable: ${key}`);
     }
     const value = typeof input === 'number' ? input : Number(input);
-    if (!Number.isSafeInteger(value) || value < min || value > max) {
+    if (!isSafeInteger(value) || value < min || value > max) {
       throw new Error(`Invalid integer environment variable: ${key}`);
     }
     return value;
@@ -39,7 +41,8 @@ export function validateEnvironment(raw: Record<string, unknown>): Environment {
   function booleanValue(key: string, fallback: boolean): boolean {
     const value = raw[key];
     if (value === undefined) return fallback;
-    if (value === true || value === 'true') return true;
+    if (isBoolean(value)) return value;
+    if (value === 'true') return true;
     if (value === false || value === 'false') return false;
     throw new Error(`Invalid boolean environment variable: ${key} (expected true or false)`);
   }

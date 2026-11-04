@@ -1,5 +1,5 @@
 import type { DataSourceOptions } from 'typeorm';
-import type { Environment } from '../config/environment';
+import type { Environment } from '@/config/environment';
 
 export type DatabaseEnvironment = Pick<
   Environment,

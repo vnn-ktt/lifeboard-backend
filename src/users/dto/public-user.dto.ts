@@ -1,4 +1,4 @@
-import type { User } from './user.entity';
+import type { User } from '@/users/entities/user.entity';
 
 /** Explicit response DTO: never serialize entities containing credentials. */
 export type PublicUser = {

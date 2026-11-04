@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, MoreThan, Repository } from 'typeorm';
-import { createSessionToken, hashSessionToken, SESSION_TTL_MS } from './cookie';
-import { UserSession } from './session.entity';
+import { createSessionToken, hashSessionToken, SESSION_TTL_MS } from '@/auth/lib/cookie';
+import { UserSession } from '@/auth/entities/user-session.entity';
 
 @Injectable()
 export class SessionsService {

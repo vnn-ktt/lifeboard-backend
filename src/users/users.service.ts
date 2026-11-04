@@ -2,14 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './user.entity';
-
-export interface NewUser {
-  email: string;
-  name: string;
-  nickname: string | null;
-  passwordHash: string;
-}
+import { User } from './entities/user.entity';
+import type { NewUser } from './types/new-user.type';
 
 @Injectable()
 export class UsersService {

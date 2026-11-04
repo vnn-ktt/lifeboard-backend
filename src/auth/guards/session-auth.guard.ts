@@ -1,12 +1,12 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { UsersService } from '../users/users.service';
-import { toPublicUser } from '../users/public-user';
-import { readSessionCookie } from './cookie';
-import type { AuthenticatedRequest } from './authenticated-request';
-import { IS_PUBLIC_KEY } from './public.decorator';
-import { SessionsService } from './sessions.service';
+import { UsersService } from '@/users/users.service';
+import { toPublicUser } from '@/users/dto/public-user.dto';
+import { readSessionCookie } from '@/auth/lib/cookie';
+import type { AuthenticatedRequest } from '@/auth/types/authenticated-request.type';
+import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
+import { SessionsService } from '@/auth/services/sessions.service';
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
