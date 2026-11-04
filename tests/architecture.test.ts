@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 
 const root = resolve(process.cwd(), 'src');
-const modules = ['areas', 'goals', 'life', 'auth', 'users'];
+const modules = ['areas', 'goals', 'life', 'auth', 'users', 'routines', 'progress'];
 
 function walk(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {

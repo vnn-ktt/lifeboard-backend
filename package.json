@@ -1,6 +1,6 @@
 {
   "name": "lifeboard-backend",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -15,7 +15,7 @@
     "db:revert": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts",
     "db:generate": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/database/data-source.ts",
     "db:migrate:prod": "node ./node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js",
-    "test": "node --test --require ts-node/register --require tsconfig-paths/register tests/password.test.ts tests/validation.test.ts tests/goals-validation.test.ts tests/architecture.test.ts"
+    "test": "node --test --require ts-node/register --require tsconfig-paths/register tests/password.test.ts tests/validation.test.ts tests/goals-validation.test.ts tests/architecture.test.ts tests/routines-validation.test.ts tests/progress-rules.test.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

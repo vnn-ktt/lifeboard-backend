@@ -1,92 +1,18 @@
-# Lifeboard Backend v0.3.1 — modular architecture refactor
+# Lifeboard Backend v0.4.0 — Routines & Progress
 
-NestJS 11 · TypeORM · PostgreSQL 17 · REST · Bun package manager · Node.js 24 runtime.
+NestJS 11 · TypeScript · PostgreSQL 17 · TypeORM · REST · Bun package manager · Node.js 24 runtime.
 
-**Frontend is unchanged.** This release reorganizes v0.3.0 source files without changing REST routes, response shapes, PostgreSQL schema, or migration history.
+**Frontend v0.14.1 is unchanged.** This release builds on **v0.3.1 modular** and adds routines, occurrence checks, and server-side progress calculations. All previous Auth, Areas, Goals, Life, and Health routes remain available.
 
-## Structure
+## Upgrade from v0.3.1
 
-```text
-src/
-├── areas/
-│   ├── areas.module.ts
-│   ├── areas.controller.ts
-│   ├── areas.service.ts
-│   ├── dto/
-│   │   ├── create-area.dto.ts
-│   │   └── area-response.dto.ts
-│   └── entities/life-area.entity.ts
-├── goals/
-│   ├── goals.module.ts
-│   ├── goals.controller.ts
-│   ├── goals.service.ts
-│   ├── dto/
-│   │   ├── create-goal.dto.ts
-│   │   ├── update-goal.dto.ts
-│   │   ├── set-focus.dto.ts
-│   │   └── goal-response.dto.ts
-│   ├── entities/life-goal.entity.ts
-│   └── domain/goal-rules.ts
-├── life/
-│   ├── life.module.ts
-│   ├── life.controller.ts
-│   ├── life.service.ts
-│   ├── dto/set-vision.dto.ts
-│   └── entities/user-life-settings.entity.ts
-├── auth/
-│   ├── auth.module.ts
-│   ├── auth.controller.ts
-│   ├── auth.service.ts
-│   ├── dto/
-│   ├── entities/
-│   ├── guards/
-│   ├── decorators/
-│   ├── services/
-│   ├── lib/
-│   └── types/
-├── users/
-│   ├── users.module.ts
-│   ├── users.controller.ts
-│   ├── users.service.ts
-│   ├── dto/
-│   ├── entities/
-│   └── types/
-├── common/
-│   ├── pipes/non-empty-body.pipe.ts
-│   └── user-write-lock/
-│       ├── user-write-lock.module.ts
-│       └── user-write-lock.service.ts
-├── utils/
-│   ├── type-guards.ts
-│   └── string-transformers.ts
-├── config/
-├── database/
-│   ├── migrations/ (unchanged)
-│   ├── data-source.ts
-│   └── database-options.ts
-├── health/
-├── main.ts
-└── app.module.ts
-```
+Read [UPGRADE.md](UPGRADE.md). Prefer the patch archive if you have local modifications.
 
-Only `*.module.ts`, `*.controller.ts`, `*.service.ts` live at the root of each **feature** module. The `health` module has no service because it performs one simple PostgreSQL readiness check.
+1. Commit/backup your current code and PostgreSQL data.
+2. Merge the new files. Keep your own `.env` and `bun.lock` (no new dependencies required).
+3. Apply the **one new** migration; do **not** recreate the database volume.
 
-`Areas`, `Goals`, and `Life` are independent Nest modules, registered individually in `AppModule`. Goal ownership, cross-user parent restrictions, cyclic ancestry checks, focus ordering, and area ownership rules remain in place.
-
-`UserWriteLockModule` is an imported shared infrastructure module, **not** a replacement for the feature modules. It serializes per-user mutations in PostgreSQL.
-
-## Installation after upgrading from v0.3.0
-
-Back up your current repo and database. Merge or replace the source files with this archive. **Do not replace your existing `.env`, and do not delete Docker volumes.** The uploaded `.env` is intentionally excluded from this archive for security.
-
-New packages:
-
-- runtime: `class-validator`, `class-transformer` (standard Nest `ValidationPipe`)
-- development: `tsconfig-paths` (resolve `@/` in `ts-node`), `tsc-alias` (rewrite aliases after compiling to JS)
-
-The archive contains the **previous `bun.lock` as a baseline**; it cannot be regenerated here because the package registry is not accessible. **It is outdated relative to the new `package.json` until you run `bun install`.** Do this once on your machine and commit the updated lockfile before Docker builds.
-
-```sh
+```bash
 bun install
 bun run typecheck
 bun run test
@@ -95,83 +21,142 @@ bun run db:migrate
 bun run start:dev
 ```
 
-Then, if using Compose:
+For Docker deployments: `docker compose build && docker compose up -d` (Compose runs migrations before API). Use Docker only if you already run this project with Docker. Do not execute `docker compose down -v`: it deletes database data.
 
-```sh
-docker compose build
-docker compose up -d
-docker compose ps
+## Project structure
+
+```text
+src/
+├── areas/         dto/ entities/ + areas.{module,controller,service}.ts
+├── goals/         dto/ entities/ domain/ + goals.{module,controller,service}.ts
+├── life/          dto/ entities/ + life.{module,controller,service}.ts
+├── auth/          dto/ entities/ guards/ decorators/ services/ lib/ types/
+├── users/         dto/ entities/ types/
+├── routines/      dto/ entities/ domain/ + routines.{module,controller,service}.ts      NEW
+├── progress/      dto/ domain/ + progress.{module,controller,service}.ts                NEW
+├── common/        decorators/is-date-key.decorator.ts, pipes/
+├── utils/         date-key.ts, type-guards.ts, string-transformers.ts
+├── database/      data-source.ts, database-options.ts, migrations/
+├── config/
+├── health/
+├── app.module.ts
+└── main.ts
 ```
 
-No new migrations have been introduced. All three original migration files are untouched. Running `db:migrate` again should report no pending migrations if v0.3.0 was already migrated.
+- In each feature module's root: **only** `*.module.ts`, `*.service.ts`, `*.controller.ts`.
+- Imports via `@/...` (`tsconfig-paths` in dev, `tsc-alias` in build).
+- Existing global `ValidationPipe` rejects unknown fields and implicit coercions.
+- `RoutinesModule` owns routine CRUD and date-scoped checks.
+- `ProgressModule` owns aggregates; it is read-only and does not import `RoutinesModule` or `GoalsModule`.
+- Both modules use existing Auth guard, extracting user ID from the session, never from client payload.
 
-## Path alias `@/`
+## Database migration
 
-`tsconfig.json` declares:
+New migration: `1793936400000-CreateRoutinesAndChecks.ts`.
+
+- `life_routines`: UUID ID, user, parent goal, title/description, `time` as **HH:mm**, `days` as ISO weekday integers **1=Mon..7=Sun**, `duration_minutes`.
+- `routine_checks`: `(routine_id, date)` composite primary key; the row means `true`, its absence means `false`.
+- Cross-user goal/routine associations are forbidden by composite foreign keys; goal/routine deletion cascades checks. Existing tables and migrations are untouched.
+- Indexed by user/date and goal, with database checks for time, weekday range, and duration.
+- Repeating `PUT` with `done: true` is idempotent. Setting `false` deletes the row (also idempotent).
+
+> Date-only fields use strict `YYYY-MM-DD` Gregorian dates, never timestamps. No timezone conversion is performed for occurrences. Clients should pass their local calendar date; when `at` is omitted, goal progress defaults to today's **UTC** date. Future user-timezone settings can be introduced separately.
+
+## REST routes
+
+All routes below are prefixed with `/api/v1` and **require the HttpOnly session cookie**.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/routines?goalId=<uuid>` | All routines or routines for a goal (owner only) |
+| POST | `/routines` | Create a routine |
+| GET | `/routines/:id` | Get routine |
+| PATCH | `/routines/:id` | Partial update, rejects `{}` |
+| DELETE | `/routines/:id` | Delete routine and its checks (204) |
+| GET | `/routines/day?date=YYYY-MM-DD` | Planned routines + `done` flags and daily stats |
+| GET | `/routines/checks?from=YYYY-MM-DD&to=YYYY-MM-DD` | Completed checks (up to **366 days** inclusive) |
+| PUT | `/routines/:id/checks/:date` | Mark/unmark, `{ "done": true / false }` |
+| GET | `/goals/:id/progress?at=YYYY-MM-DD` | Completed occurrences during this goal's horizon |
+| GET | `/progress/week?date=YYYY-MM-DD` | Monday–Sunday statistics, daily breakdown |
+
+Existing v0.3.1 routes continue to work: `/auth/*`, `/users/me`, `/areas`, `/goals`, `/goals/focus`, `/life/vision`, `/health/*`.
+
+### Create routine
+
+**POST** `/api/v1/routines`
 
 ```json
 {
-  "compilerOptions": {
-    "baseUrl": "./src",
-    "paths": { "@/*": ["*"] }
-  }
+  "goalId": "<a goal UUID owned by the signed-in user>",
+  "title": "Утренняя прогулка",
+  "description": "Прогулка и тренировка",
+  "time": "07:25",
+  "days": [1, 2, 3, 4, 5, 6, 7],
+  "durationMinutes": 40
 }
 ```
 
-Use `import { User } from '@/users/entities/user.entity';` anywhere inside `src`.
+`goalId` must be a v4 UUID from the Goals API (not the frontend demo IDs). The response uses the exact `LifeRoutine` JSON keys from frontend `types.ts`, plus server-generated `id`.
 
-A TypeScript compiler path alias is **not** automatically understood by Node.js. To avoid runtime `MODULE_NOT_FOUND`:
+### Set completion
 
-- `start:dev`, `db:migrate`, `db:revert`, `db:generate`, and `test` preload `tsconfig-paths/register` together with `ts-node/register`.
-- `build` runs `tsc` followed by `tsc-alias`, replacing `@/` paths in compiled `dist/**/*.js` with valid relative `require(...)` paths.
-- `start` and `db:migrate:prod` use Node.js directly on compiled JS and do **not** need `tsconfig-paths` in production.
+**PUT** `/api/v1/routines/<routineId>/checks/2026-11-05`
 
-After `bun run build`, check that `.js` files in `dist` no longer contain unresolved `require("@/...")` references.
-
-## Request validation
-
-`main.ts` installs one global `ValidationPipe`:
-
-```ts
-app.useGlobalPipes(new ValidationPipe({
-  transform: true,
-  transformOptions: { enableImplicitConversion: false },
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  stopAtFirstError: true,
-  validationError: { target: false, value: false },
-}));
+```json
+{ "done": true }
 ```
 
-Body classes live under `<module>/dto/` and use `class-validator` / `class-transformer` decorators.
+Returns `{ "routineId": "...", "date": "2026-11-05", "done": true }`. Repeat the same request without creating duplicates; `{ "done": false }` removes the check. Marking a date is permitted even if the routine is not scheduled that day, matching the old Pinia behavior.
 
-- Bad types and invalid fields return HTTP 400.
-- Extra body fields are rejected, not silently ignored.
-- Strings with fields that previously normalized whitespace continue to do so.
-- `PATCH /goals/:id` requires at least one property, using a small custom `NonEmptyBodyPipe`.
-- Goal UUID route parameters continue using `ParseUUIDPipe`.
-- There is no implicit number/string coercion: `"target": "10"` is rejected.
+### Read completed checks
 
-`src/utils/` includes pure `isString`, `isBoolean`, `isRecord`, `isSafeInteger` and normalization helpers. Domain-specific rules (e.g. detecting cycles) remain in their domain module.
+**GET** `/api/v1/routines/checks?from=2026-11-01&to=2026-11-30`
 
-## Unchanged API
+```json
+{ "checks": { "2026-11-05|<routineId>": true } }
+```
 
-All paths below use `/api/v1` and authentication rules from v0.3.0:
+This key format matches frontend's existing `LifeState.checks`. Every key ends in a server UUID rather than a `demo-*` string.
 
-| Module | Routes |
-|---|---|
-| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout` |
-| Users | `GET /users/me` |
-| Areas | `GET /areas`, `POST /areas`, `DELETE /areas/:id` |
-| Goals | `GET /goals`, `POST /goals`, `GET /goals/focus`, `PUT /goals/focus`, `GET /goals/:id`, `PATCH /goals/:id`, `DELETE /goals/:id` |
-| Life | `GET /life/vision`, `PUT /life/vision` |
-| Health | `GET /health/live`, `GET /health/ready` |
+### Read day plan
 
-A Postman collection is retained under `postman/`.
+**GET** `/api/v1/routines/day?date=2026-11-05`
 
-## Verification status
+```json
+{
+  "date": "2026-11-05",
+  "routines": [
+    { "id": "...", "goalId": "...", "title": "Утренняя прогулка", "description": "Прогулка и тренировка", "time": "07:25", "days": [1, 2, 3, 4, 5, 6, 7], "durationMinutes": 40, "done": true }
+  ],
+  "stats": { "done": 1, "total": 1, "percent": 100, "durationMinutes": 40 }
+}
+```
 
-- Verified: all 58 TypeScript source/test files parse, and all local `@/` and relative imports resolve to existing source paths.
-- Not verified in this environment: actual `bun install`, complete Nest TypeScript typecheck, application startup, PostgreSQL migration smoke test, Docker build, end-to-end Postman tests. Dependencies cannot be downloaded here; **run the commands above locally before treating this as a tested release**.
+### Goal progress
 
-A recommended next improvement is an integration test suite with a disposable PostgreSQL instance, without modifying the frontend.
+**GET** `/api/v1/goals/<goalId>/progress?at=2026-11-05`
+
+```json
+{
+  "goalId": "...",
+  "at": "2026-11-05",
+  "period": { "from": "2026-11-01", "toExclusive": "2026-12-01" },
+  "done": 1,
+  "target": 20,
+  "percent": 5
+}
+```
+
+The date period depends on the goal's `horizon`. Like frontend `getGoalProgress()`, `done` counts all **completed routine occurrences** belonging to the goal inside the period; `target` remains the goal's chosen threshold. `percent` is rounded and capped at 100. Goal ancestry does **not** aggregate descendant routines. `five-years` deliberately starts Jan 1 of `at` year and ends Jan 1 of `at + 5` years, mirroring the current frontend calculation; this can be revisited with a new contract later.
+
+**GET** `/api/v1/progress/week?date=2026-11-05` returns `{ weekStart, done, total, percent, days: [{ date, done, total, percent }] }`, with a calendar week beginning Monday. Only scheduled occurrences count toward *daily/weekly* stats; unlike those stats, goal progress counts every completed check (including off-schedule).
+
+## Postman testing
+
+Import `postman/Lifeboard-v0.4.0.postman_collection.json`. Login in the Auth folder (Postman retains the session cookie), then create a goal in the Goals folder; `childGoalId` will be captured automatically. Run the Routines folder top-to-bottom; it creates, modifies, checks, unchecks, and deletes a routine. The Progress folder contains reusable queries; the Routines sequence also verifies progress while a completion exists. For cross-user checks, login as a different user and verify foreign IDs return 404.
+
+## Verification
+
+- Source syntax, `@/` import destinations, root-module structure, and pure date/progress rules were checked offline.
+- DTO validation, full `bun run typecheck`, Nest app startup, PostgreSQL migration and Postman end-to-end requests **must be verified on your machine** with installed dependencies and PostgreSQL. No package registry or container runtime is available in this environment.
+- No new npm or Bun dependencies were added. Keep your current up-to-date `bun.lock` from your local v0.3.1 repository. The full snapshot intentionally omits a stale lockfile; run `bun install` to generate one before `docker compose build`.

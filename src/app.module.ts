@@ -10,6 +10,8 @@ import { UsersModule } from '@/users/users.module';
 import { AreasModule } from '@/areas/areas.module';
 import { GoalsModule } from '@/goals/goals.module';
 import { LifeModule } from '@/life/life.module';
+import { RoutinesModule } from '@/routines/routines.module';
+import { ProgressModule } from '@/progress/progress.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { LifeModule } from '@/life/life.module';
     AreasModule,
     GoalsModule,
     LifeModule,
+    RoutinesModule,
+    ProgressModule,
   ],
 })
 export class AppModule {}
