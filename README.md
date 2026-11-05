@@ -1,16 +1,12 @@
-# Lifeboard Backend v0.4.0 — Routines & Progress
+# Lifeboard Backend v0.5.0 — Weekly Reviews
 
-NestJS 11 · TypeScript · PostgreSQL 17 · TypeORM · REST · Bun package manager · Node.js 24 runtime.
+NestJS 11 · PostgreSQL 17 · TypeORM · REST · Bun package manager · Node.js 24 runtime.
 
-**Frontend v0.14.1 is unchanged.** This release builds on **v0.3.1 modular** and adds routines, occurrence checks, and server-side progress calculations. All previous Auth, Areas, Goals, Life, and Health routes remain available.
+**Frontend is unchanged.** Built on v0.4.0; keeps Auth, Users, Areas, Goals, Life, Routines, Progress and Health contracts intact. This release adds a `ReviewsModule` for weekly reflection.
 
-## Upgrade from v0.3.1
+## Upgrade from v0.4.0
 
-Read [UPGRADE.md](UPGRADE.md). Prefer the patch archive if you have local modifications.
-
-1. Commit/backup your current code and PostgreSQL data.
-2. Merge the new files. Keep your own `.env` and `bun.lock` (no new dependencies required).
-3. Apply the **one new** migration; do **not** recreate the database volume.
+Read [UPGRADE.md](UPGRADE.md) and prefer the patch archive to preserve your local changes. Keep existing `.env`, `bun.lock` and PostgreSQL volume. No new dependencies are needed.
 
 ```bash
 bun install
@@ -21,142 +17,95 @@ bun run db:migrate
 bun run start:dev
 ```
 
-For Docker deployments: `docker compose build && docker compose up -d` (Compose runs migrations before API). Use Docker only if you already run this project with Docker. Do not execute `docker compose down -v`: it deletes database data.
+Do not reset database volumes. New migration: `1794022800000-CreateWeeklyReviews.ts` (creates `weekly_reviews` only).
 
-## Project structure
+## Module structure
 
 ```text
-src/
-├── areas/         dto/ entities/ + areas.{module,controller,service}.ts
-├── goals/         dto/ entities/ domain/ + goals.{module,controller,service}.ts
-├── life/          dto/ entities/ + life.{module,controller,service}.ts
-├── auth/          dto/ entities/ guards/ decorators/ services/ lib/ types/
-├── users/         dto/ entities/ types/
-├── routines/      dto/ entities/ domain/ + routines.{module,controller,service}.ts      NEW
-├── progress/      dto/ domain/ + progress.{module,controller,service}.ts                NEW
-├── common/        decorators/is-date-key.decorator.ts, pipes/
-├── utils/         date-key.ts, type-guards.ts, string-transformers.ts
-├── database/      data-source.ts, database-options.ts, migrations/
-├── config/
-├── health/
-├── app.module.ts
-└── main.ts
+src/reviews/
+├── dto/
+│   ├── review-range-query.dto.ts
+│   ├── save-review.dto.ts
+│   └── weekly-review-response.dto.ts
+├── domain/
+│   └── review-rules.ts
+├── entities/
+│   └── weekly-review.entity.ts
+├── reviews.controller.ts
+├── reviews.module.ts
+└── reviews.service.ts
 ```
 
-- In each feature module's root: **only** `*.module.ts`, `*.service.ts`, `*.controller.ts`.
-- Imports via `@/...` (`tsconfig-paths` in dev, `tsc-alias` in build).
-- Existing global `ValidationPipe` rejects unknown fields and implicit coercions.
-- `RoutinesModule` owns routine CRUD and date-scoped checks.
-- `ProgressModule` owns aggregates; it is read-only and does not import `RoutinesModule` or `GoalsModule`.
-- Both modules use existing Auth guard, extracting user ID from the session, never from client payload.
+The feature module root contains **only** its controller, service and module. All imports use `@/`. The existing global `ValidationPipe` (`whitelist`, `forbidNonWhitelisted`, no implicit conversion) applies; `userId` always comes from the authenticated session.
 
-## Database migration
+## Frontend compatibility
 
-New migration: `1793936400000-CreateRoutinesAndChecks.ts`.
+Frontend's `WeeklyReview` type:
 
-- `life_routines`: UUID ID, user, parent goal, title/description, `time` as **HH:mm**, `days` as ISO weekday integers **1=Mon..7=Sun**, `duration_minutes`.
-- `routine_checks`: `(routine_id, date)` composite primary key; the row means `true`, its absence means `false`.
-- Cross-user goal/routine associations are forbidden by composite foreign keys; goal/routine deletion cascades checks. Existing tables and migrations are untouched.
-- Indexed by user/date and goal, with database checks for time, weekday range, and duration.
-- Repeating `PUT` with `done: true` is idempotent. Setting `false` deletes the row (also idempotent).
+```ts
+interface WeeklyReview {
+  weekStart: string; // YYYY-MM-DD (Monday)
+  wins: string;
+  obstacles: string;
+  nextStep: string;
+  mood: number;      // 1..10
+  updatedAt: string; // ISO datetime
+}
+```
 
-> Date-only fields use strict `YYYY-MM-DD` Gregorian dates, never timestamps. No timezone conversion is performed for occurrences. Clients should pass their local calendar date; when `at` is omitted, goal progress defaults to today's **UTC** date. Future user-timezone settings can be introduced separately.
+- All three free-form fields are strings, maximum **1000 characters**, including empty strings. No trimming: preserve user text exactly as typed in the existing UI.
+- `mood` is an integer between **1 and 10**, with no coercion from strings.
+- A date in the URL can be **any day** of the relevant calendar week. The service normalizes it to the **Monday** (`weekStart`) using UTC-only date arithmetic to prevent timezone/DST errors.
+- Exactly one review per `(user_id, week_start)` — composite primary key, atomic upsert. A retry overwrites the same row.
+- PostgreSQL checks Monday-only dates and mood range, and cascades on user deletion.
+- `updatedAt` is generated by the server; requests cannot supply it.
+- No automatic weekly progress snapshot: reflections are separate from live progress. Query `/progress/week?date=...` for completion statistics.
 
-## REST routes
+## REST API
 
-All routes below are prefixed with `/api/v1` and **require the HttpOnly session cookie**.
+All routes require the existing session cookie and use `/api/v1` prefix.
 
-| Method | Endpoint | Purpose |
+| Method | Path | Result |
 |---|---|---|
-| GET | `/routines?goalId=<uuid>` | All routines or routines for a goal (owner only) |
-| POST | `/routines` | Create a routine |
-| GET | `/routines/:id` | Get routine |
-| PATCH | `/routines/:id` | Partial update, rejects `{}` |
-| DELETE | `/routines/:id` | Delete routine and its checks (204) |
-| GET | `/routines/day?date=YYYY-MM-DD` | Planned routines + `done` flags and daily stats |
-| GET | `/routines/checks?from=YYYY-MM-DD&to=YYYY-MM-DD` | Completed checks (up to **366 days** inclusive) |
-| PUT | `/routines/:id/checks/:date` | Mark/unmark, `{ "done": true / false }` |
-| GET | `/goals/:id/progress?at=YYYY-MM-DD` | Completed occurrences during this goal's horizon |
-| GET | `/progress/week?date=YYYY-MM-DD` | Monday–Sunday statistics, daily breakdown |
+| `GET` | `/reviews?from=2026-11-01&to=2026-11-30` | `200` array sorted descending by `weekStart` |
+| `GET` | `/reviews/2026-11-05` | `200` one review, or `404` if missing |
+| `PUT` | `/reviews/2026-11-05` | `200` creates or replaces a review for week `2026-11-02` |
+| `DELETE` | `/reviews/2026-11-05` | `204` idempotent deletion (no body) |
 
-Existing v0.3.1 routes continue to work: `/auth/*`, `/users/me`, `/areas`, `/goals`, `/goals/focus`, `/life/vision`, `/health/*`.
+`GET /reviews` requires both `from` and `to`, both real YYYY-MM-DD dates, and restricts range to **1–366 calendar days**. The search includes any week *overlapping* the specified date range, so `2026-11-01` includes the week starting `2026-10-26`.
 
-### Create routine
-
-**POST** `/api/v1/routines`
+**Example PUT** `http://localhost:3000/api/v1/reviews/2026-11-05` (Body > raw > JSON):
 
 ```json
 {
-  "goalId": "<a goal UUID owned by the signed-in user>",
-  "title": "Утренняя прогулка",
-  "description": "Прогулка и тренировка",
-  "time": "07:25",
-  "days": [1, 2, 3, 4, 5, 6, 7],
-  "durationMinutes": 40
+  "wins": "Закрыл инфраструктуру Lifeboard",
+  "obstacles": "Мало времени на тесты",
+  "nextStep": "Добавить интеграционные тесты",
+  "mood": 8
 }
 ```
 
-`goalId` must be a v4 UUID from the Goals API (not the frontend demo IDs). The response uses the exact `LifeRoutine` JSON keys from frontend `types.ts`, plus server-generated `id`.
-
-### Set completion
-
-**PUT** `/api/v1/routines/<routineId>/checks/2026-11-05`
-
-```json
-{ "done": true }
-```
-
-Returns `{ "routineId": "...", "date": "2026-11-05", "done": true }`. Repeat the same request without creating duplicates; `{ "done": false }` removes the check. Marking a date is permitted even if the routine is not scheduled that day, matching the old Pinia behavior.
-
-### Read completed checks
-
-**GET** `/api/v1/routines/checks?from=2026-11-01&to=2026-11-30`
-
-```json
-{ "checks": { "2026-11-05|<routineId>": true } }
-```
-
-This key format matches frontend's existing `LifeState.checks`. Every key ends in a server UUID rather than a `demo-*` string.
-
-### Read day plan
-
-**GET** `/api/v1/routines/day?date=2026-11-05`
+Example successful response (`updatedAt` varies):
 
 ```json
 {
-  "date": "2026-11-05",
-  "routines": [
-    { "id": "...", "goalId": "...", "title": "Утренняя прогулка", "description": "Прогулка и тренировка", "time": "07:25", "days": [1, 2, 3, 4, 5, 6, 7], "durationMinutes": 40, "done": true }
-  ],
-  "stats": { "done": 1, "total": 1, "percent": 100, "durationMinutes": 40 }
+  "weekStart": "2026-11-02",
+  "wins": "Закрыл инфраструктуру Lifeboard",
+  "obstacles": "Мало времени на тесты",
+  "nextStep": "Добавить интеграционные тесты",
+  "mood": 8,
+  "updatedAt": "2026-11-05T10:00:00.000Z"
 }
 ```
 
-### Goal progress
+### Negative cases
 
-**GET** `/api/v1/goals/<goalId>/progress?at=2026-11-05`
+- No session cookie → `401`.
+- Missing review → `404`.
+- Incorrect date (e.g. `2026-02-29`) → `400`.
+- Invalid mood (`0`, `11`, `"7"`, `7.5`) or unexpected fields → `400`.
+- Range longer than 366 days / reverse range → `400`.
 
-```json
-{
-  "goalId": "...",
-  "at": "2026-11-05",
-  "period": { "from": "2026-11-01", "toExclusive": "2026-12-01" },
-  "done": 1,
-  "target": 20,
-  "percent": 5
-}
-```
+## Checks and limitations
 
-The date period depends on the goal's `horizon`. Like frontend `getGoalProgress()`, `done` counts all **completed routine occurrences** belonging to the goal inside the period; `target` remains the goal's chosen threshold. `percent` is rounded and capped at 100. Goal ancestry does **not** aggregate descendant routines. `five-years` deliberately starts Jan 1 of `at` year and ends Jan 1 of `at + 5` years, mirroring the current frontend calculation; this can be revisited with a new contract later.
-
-**GET** `/api/v1/progress/week?date=2026-11-05` returns `{ weekStart, done, total, percent, days: [{ date, done, total, percent }] }`, with a calendar week beginning Monday. Only scheduled occurrences count toward *daily/weekly* stats; unlike those stats, goal progress counts every completed check (including off-schedule).
-
-## Postman testing
-
-Import `postman/Lifeboard-v0.4.0.postman_collection.json`. Login in the Auth folder (Postman retains the session cookie), then create a goal in the Goals folder; `childGoalId` will be captured automatically. Run the Routines folder top-to-bottom; it creates, modifies, checks, unchecks, and deletes a routine. The Progress folder contains reusable queries; the Routines sequence also verifies progress while a completion exists. For cross-user checks, login as a different user and verify foreign IDs return 404.
-
-## Verification
-
-- Source syntax, `@/` import destinations, root-module structure, and pure date/progress rules were checked offline.
-- DTO validation, full `bun run typecheck`, Nest app startup, PostgreSQL migration and Postman end-to-end requests **must be verified on your machine** with installed dependencies and PostgreSQL. No package registry or container runtime is available in this environment.
-- No new npm or Bun dependencies were added. Keep your current up-to-date `bun.lock` from your local v0.3.1 repository. The full snapshot intentionally omits a stale lockfile; run `bun install` to generate one before `docker compose build`.
+Added validation/unit tests in `tests/reviews-validation.test.ts`, `tests/reviews-service.test.ts`, plus expanded the architecture test. Runtime and PostgreSQL migration must be verified on your machine; this environment does not have NestJS packages available. `bun.lock` is **not** bundled with the v0.4.0 base archive; keep your existing lockfile and run `bun install` locally. No third-party dependency changes.

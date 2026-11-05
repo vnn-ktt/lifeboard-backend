@@ -12,6 +12,7 @@ import { GoalsModule } from '@/goals/goals.module';
 import { LifeModule } from '@/life/life.module';
 import { RoutinesModule } from '@/routines/routines.module';
 import { ProgressModule } from '@/progress/progress.module';
+import { ReviewsModule } from '@/reviews/reviews.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ProgressModule } from '@/progress/progress.module';
     LifeModule,
     RoutinesModule,
     ProgressModule,
+    ReviewsModule,
   ],
 })
 export class AppModule {}
