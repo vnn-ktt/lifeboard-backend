@@ -14,6 +14,12 @@ export type Environment = {
   DB_SSL: boolean;
   WEB_ORIGIN: string;
   COOKIE_SECURE: boolean;
+  S3_ENDPOINT: string;
+  S3_REGION: string;
+  S3_BUCKET: string;
+  S3_ACCESS_KEY_ID: string;
+  S3_SECRET_ACCESS_KEY: string;
+  S3_FORCE_PATH_STYLE: boolean;
 };
 
 /** One validation routine for NestJS startup and standalone TypeORM CLI. */
@@ -61,6 +67,21 @@ export function validateEnvironment(raw: Record<string, unknown>): Environment {
     return value;
   }
 
+  const s3Endpoint = stringValue('S3_ENDPOINT', nodeEnv === 'production' ? undefined : 'http://127.0.0.1:8333');
+  let s3Url: URL;
+  try { s3Url = new URL(s3Endpoint); } catch { throw new Error('S3_ENDPOINT must be a valid URL'); }
+  if (!['http:', 'https:'].includes(s3Url.protocol) || s3Url.username || s3Url.password ||
+      s3Url.search || s3Url.hash || s3Url.pathname !== '/') {
+    throw new Error('S3_ENDPOINT must be an http(s) origin without path, query or credentials');
+  }
+  if (nodeEnv === 'production' && s3Url.protocol !== 'https:') {
+    throw new Error('Production S3_ENDPOINT must use HTTPS');
+  }
+  const s3Bucket = stringValue('S3_BUCKET', nodeEnv === 'production' ? undefined : 'lifeboard-dev');
+  if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(s3Bucket)) {
+    throw new Error('S3_BUCKET must be a DNS-style bucket name');
+  }
+
   return {
     NODE_ENV: nodeEnv,
     PORT: integerValue('PORT', 3000, 1, 65535),
@@ -73,5 +94,11 @@ export function validateEnvironment(raw: Record<string, unknown>): Environment {
     DB_SSL: booleanValue('DB_SSL', false),
     WEB_ORIGIN: checkedOrigin(stringValue('WEB_ORIGIN', 'http://localhost:8080')),
     COOKIE_SECURE: booleanValue('COOKIE_SECURE', nodeEnv === 'production'),
+    S3_ENDPOINT: s3Endpoint,
+    S3_REGION: stringValue('S3_REGION', 'ru-central1'),
+    S3_BUCKET: s3Bucket,
+    S3_ACCESS_KEY_ID: stringValue('S3_ACCESS_KEY_ID', nodeEnv === 'production' ? undefined : 'lifeboard-dev'),
+    S3_SECRET_ACCESS_KEY: stringValue('S3_SECRET_ACCESS_KEY', nodeEnv === 'production' ? undefined : 'lifeboard-local-secret'),
+    S3_FORCE_PATH_STYLE: booleanValue('S3_FORCE_PATH_STYLE', true),
   };
 }

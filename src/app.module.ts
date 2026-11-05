@@ -13,6 +13,7 @@ import { LifeModule } from '@/life/life.module';
 import { RoutinesModule } from '@/routines/routines.module';
 import { ProgressModule } from '@/progress/progress.module';
 import { ReviewsModule } from '@/reviews/reviews.module';
+import { FilesModule } from '@/files/files.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ReviewsModule } from '@/reviews/reviews.module';
     RoutinesModule,
     ProgressModule,
     ReviewsModule,
+    FilesModule,
   ],
 })
 export class AppModule {}

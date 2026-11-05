@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 
 const root = resolve(process.cwd(), 'src');
-const modules = ['areas', 'goals', 'life', 'auth', 'users', 'routines', 'progress', 'reviews'];
+const modules = ['areas', 'goals', 'life', 'auth', 'users', 'routines', 'progress', 'reviews', 'files'];
 
 function walk(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
@@ -30,4 +30,11 @@ test('every @/ aliased import refers to a real project file', () => {
       assert.equal(statSync(destination).isFile(), true, `${file}: ${match[0]}`);
     }
   }
+});
+
+
+test('storage is a service-only infrastructure module', () => {
+  const files = readdirSync(join(root, 'storage'), { withFileTypes: true })
+    .filter((entry) => entry.isFile()).map((entry) => entry.name).sort();
+  assert.deepEqual(files, ['storage.module.ts', 'storage.service.ts']);
 });
