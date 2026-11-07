@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LifeGoal } from '@/goals/entities/life-goal.entity';
+import { GoalMetricEntry } from '@/goal-metrics/entities/goal-metric-entry.entity';
+import { goalOutcome } from '@/goal-metrics/domain/goal-outcome';
 import { LifeRoutine } from '@/routines/entities/life-routine.entity';
 import { RoutineCheck } from '@/routines/entities/routine-check.entity';
 import { addDays, mondayOf, todayUtc } from '@/utils/date-key';
@@ -12,6 +14,7 @@ import type { GoalProgressResponseDto } from '@/progress/dto/goal-progress-respo
 export class ProgressService {
   constructor(
     @InjectRepository(LifeGoal) private readonly goals: Repository<LifeGoal>,
+    @InjectRepository(GoalMetricEntry) private readonly metrics: Repository<GoalMetricEntry>,
     @InjectRepository(LifeRoutine) private readonly routines: Repository<LifeRoutine>,
     @InjectRepository(RoutineCheck) private readonly checks: Repository<RoutineCheck>,
   ) {}
@@ -28,7 +31,15 @@ export class ProgressService {
       .andWhere('completion.date >= :from AND completion.date < :to', { from: period.from, to: period.toExclusive })
       .getRawOne<{ done: string }>();
     const done = Number(result?.done ?? 0);
-    return { goalId, at, period, done, target: goal.target, percent: goalCompletionPercent(done, goal.target) };
+    const activityPercent = goalCompletionPercent(done, goal.target);
+    const lastMetric = goal.measurement.type === 'activity' ? null : await this.metrics
+      .createQueryBuilder('metric')
+      .where('metric.goalId = :goalId AND metric.userId = :userId AND metric.date <= :at', { goalId, userId, at })
+      .orderBy('metric.date', 'DESC').addOrderBy('metric.createdAt', 'DESC')
+      .addOrderBy('metric.id', 'DESC').getOne();
+    const outcome = goalOutcome(goal.measurement, lastMetric?.value ?? null, activityPercent);
+    return { goalId, at, period, done, target: goal.target, percent: outcome.percent,
+      outcome, activity: { done, target: goal.target, percent: activityPercent } };
   }
 
   async week(userId: string, date: string): Promise<ReturnType<typeof weeklyPlanStats>> {

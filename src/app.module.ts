@@ -14,6 +14,8 @@ import { RoutinesModule } from '@/routines/routines.module';
 import { ProgressModule } from '@/progress/progress.module';
 import { ReviewsModule } from '@/reviews/reviews.module';
 import { FilesModule } from '@/files/files.module';
+import { GoalMetricsModule } from '@/goal-metrics/goal-metrics.module';
+import { GoalCheckinsModule } from '@/goal-checkins/goal-checkins.module';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { FilesModule } from '@/files/files.module';
     ProgressModule,
     ReviewsModule,
     FilesModule,
+    GoalMetricsModule,
+    GoalCheckinsModule,
   ],
 })
 export class AppModule {}

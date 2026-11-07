@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from '@/app.module';
 
@@ -17,6 +18,16 @@ async function bootstrap(): Promise<void> {
     validationError: { target: false, value: false },
   }));
   app.enableShutdownHooks();
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Lifeboard REST API')
+    .setDescription('Private session-based Lifeboard API. Authentication requires a lifeboard.sid cookie.')
+    .setVersion('0.6.1')
+    .addCookieAuth('lifeboard.sid', { type: 'apiKey', in: 'cookie', name: 'lifeboard.sid' }, 'lifeboard.sid')
+    .build();
+  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig), {
+    jsonDocumentUrl: 'api/docs-json',
+  });
 
   const config = app.get(ConfigService);
   const webOrigin = config.getOrThrow<string>('WEB_ORIGIN');

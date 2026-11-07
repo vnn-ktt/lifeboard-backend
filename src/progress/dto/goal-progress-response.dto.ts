@@ -1,3 +1,4 @@
+import type { GoalOutcome } from '@/goal-metrics/domain/goal-outcome';
 export interface GoalProgressResponseDto {
   goalId: string;
   at: string;
@@ -5,4 +6,6 @@ export interface GoalProgressResponseDto {
   done: number;
   target: number;
   percent: number;
+  outcome: GoalOutcome;
+  activity: { done: number; target: number; percent: number };
 }

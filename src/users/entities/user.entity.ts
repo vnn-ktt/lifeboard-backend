@@ -16,6 +16,9 @@ export class User {
   @Column({ type: 'varchar', length: 24, nullable: true })
   nickname!: string | null;
 
+  @Column({ type: 'varchar', length: 64, default: 'UTC' })
+  timezone!: string;
+
   @Column({ type: 'varchar', length: 400, default: '' })
   about!: string;
 
