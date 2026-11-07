@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import type { GoalMeasurement, GoalCheckinFrequency } from '@/goals/domain/goal-measurement';
 
 export type GoalHorizon = 'month' | 'quarter' | 'year' | 'five-years';
 
@@ -29,6 +30,24 @@ export class LifeGoal {
 
   @Column({ type: 'integer' })
   target!: number;
+
+  @Column({ type: 'jsonb', default: () => `'{"type":"activity"}'::jsonb` })
+  measurement!: GoalMeasurement;
+
+  @Column({ name: 'start_date', type: 'date', nullable: true })
+  startDate!: string | null;
+
+  @Column({ name: 'due_date', type: 'date', nullable: true })
+  dueDate!: string | null;
+
+  @Column({ name: 'checkin_frequency', type: 'varchar', length: 8, nullable: true })
+  checkinFrequency!: GoalCheckinFrequency | null;
+
+  @Column({ name: 'checkin_weekday', type: 'smallint', nullable: true })
+  checkinWeekday!: number | null;
+
+  @Column({ name: 'checkin_from_date', type: 'date', nullable: true })
+  checkinFromDate!: string | null;
 
   @Column({ name: 'parent_id', type: 'uuid', nullable: true })
   parentId!: string | null;

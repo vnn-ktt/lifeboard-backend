@@ -1,0 +1,614 @@
+{
+  "info": {
+    "name": "Lifeboard Backend v0.6.1 — Goal Check-ins",
+    "_postman_id": "36a3d501-7011-468a-b126-54de30f8bc33",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Login (cookie session)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"ivan@example.com\",\n  \"password\": \"MyStrongPassword123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "2. Set timezone",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/me/timezone",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "me",
+            "timezone"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timezone\": \"Europe/Amsterdam\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "3. Create numeric daily goal (for immediate test)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"areaId\": \"finance\",\n  \"title\": \"Savings check-in test\",\n  \"description\": \"Measurable target\",\n  \"horizon\": \"year\",\n  \"target\": 12,\n  \"measurement\": {\n    \"type\": \"numeric\",\n    \"direction\": \"increase\",\n    \"unit\": \"USD\",\n    \"startValue\": 20000,\n    \"targetValue\": 100000\n  },\n  \"checkin\": {\n    \"frequency\": \"daily\",\n    \"fromDate\": \"{{today}}\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code===201) pm.collectionVariables.set(\"goalId\",pm.response.json().id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Get due queue",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goal-checkins/due",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goal-checkins",
+            "due"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const all=pm.response.json(); const item=all.find(x=>x.goalId===pm.collectionVariables.get(\"goalId\")); if(item) pm.collectionVariables.set(\"dueDate\",item.dueDate);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Complete UPDATED",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/checkins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "checkins"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dueDate\": \"{{dueDate}}\",\n  \"status\": \"updated\",\n  \"value\": 35000,\n  \"note\": \"Deposit\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code===201 || pm.response.code===200) { const row=pm.response.json(); pm.collectionVariables.set(\"checkinId\",row.id); if(row.metricEntryId) pm.collectionVariables.set(\"metricEntryId\",row.metricEntryId); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Retry UPDATED (idempotent)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/checkins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "checkins"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dueDate\": \"{{dueDate}}\",\n  \"status\": \"updated\",\n  \"value\": 35000,\n  \"note\": \"Deposit\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "7. Conflicting retry (409)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/checkins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "checkins"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dueDate\": \"{{dueDate}}\",\n  \"status\": \"skipped\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "8. List completed check-ins",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/checkins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "checkins"
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. Read main result + activity progress",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/progress",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "progress"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. List metric history",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/metrics",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "metrics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11. Manual metric entry",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/metrics",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "metrics"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"value\": 36000,\n  \"note\": \"Manual edit\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "12. Delete check-in linked metric (keeps check-in)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/metrics/{{metricEntryId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "metrics",
+            "{{metricEntryId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "13. Create separate daily goal: UNCHANGED",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"areaId\": \"finance\",\n  \"title\": \"Check-in unchanged\",\n  \"description\": \"Measurable target\",\n  \"horizon\": \"year\",\n  \"target\": 12,\n  \"measurement\": {\n    \"type\": \"numeric\",\n    \"direction\": \"increase\",\n    \"unit\": \"USD\",\n    \"startValue\": 20000,\n    \"targetValue\": 100000\n  },\n  \"checkin\": {\n    \"frequency\": \"daily\",\n    \"fromDate\": \"{{today}}\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code===201) pm.collectionVariables.set(\"goalId_unchanged\",pm.response.json().id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. Get due: UNCHANGED",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goal-checkins/due",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goal-checkins",
+            "due"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const all=pm.response.json(); const item=all.find(x=>x.goalId===pm.collectionVariables.get(\"goalId_unchanged\")); if(item) pm.collectionVariables.set(\"dueDate_unchanged\",item.dueDate);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. Complete UNCHANGED on separate goal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId_unchanged}}/checkins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId_unchanged}}",
+            "checkins"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dueDate\": \"{{dueDate_unchanged}}\",\n  \"status\": \"unchanged\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "16. Create separate daily goal: SKIPPED",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"areaId\": \"finance\",\n  \"title\": \"Check-in skipped\",\n  \"description\": \"Measurable target\",\n  \"horizon\": \"year\",\n  \"target\": 12,\n  \"measurement\": {\n    \"type\": \"numeric\",\n    \"direction\": \"increase\",\n    \"unit\": \"USD\",\n    \"startValue\": 20000,\n    \"targetValue\": 100000\n  },\n  \"checkin\": {\n    \"frequency\": \"daily\",\n    \"fromDate\": \"{{today}}\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code===201) pm.collectionVariables.set(\"goalId_skipped\",pm.response.json().id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "17. Get due: SKIPPED",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goal-checkins/due",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goal-checkins",
+            "due"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const all=pm.response.json(); const item=all.find(x=>x.goalId===pm.collectionVariables.get(\"goalId_skipped\")); if(item) pm.collectionVariables.set(\"dueDate_skipped\",item.dueDate);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "18. Complete SKIPPED on separate goal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId_skipped}}/checkins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId_skipped}}",
+            "checkins"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dueDate\": \"{{dueDate_skipped}}\",\n  \"status\": \"skipped\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "19. Swagger JSON",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{apiOrigin}}/api/docs-json",
+          "host": [
+            "{{apiOrigin}}"
+          ],
+          "path": [
+            "api",
+            "docs-json"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "apiOrigin",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "goalId",
+      "value": ""
+    },
+    {
+      "key": "today",
+      "value": "2026-11-06"
+    },
+    {
+      "key": "dueDate",
+      "value": "2026-11-06"
+    },
+    {
+      "key": "metricEntryId",
+      "value": ""
+    },
+    {
+      "key": "goalId_unchanged",
+      "value": ""
+    },
+    {
+      "key": "dueDate_unchanged",
+      "value": ""
+    },
+    {
+      "key": "goalId_skipped",
+      "value": ""
+    },
+    {
+      "key": "dueDate_skipped",
+      "value": ""
+    }
+  ]
+}

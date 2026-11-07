@@ -7,6 +7,7 @@ export type PublicUser = {
   name: string;
   nickname: string;
   about: string;
+  timezone: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -18,6 +19,7 @@ export function toPublicUser(user: User): PublicUser {
     name: user.name,
     nickname: user.nickname ?? '',
     about: user.about,
+    timezone: user.timezone,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

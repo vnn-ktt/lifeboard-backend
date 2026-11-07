@@ -4,6 +4,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import { LifeArea } from '@/areas/entities/life-area.entity';
 import { LifeGoal } from './entities/life-goal.entity';
+import { User } from '@/users/entities/user.entity';
+import { GoalMetricEntry } from '@/goal-metrics/entities/goal-metric-entry.entity';
+import { GoalCheckin } from '@/goal-checkins/entities/goal-checkin.entity';
+import { assignSchedule, scheduleOf } from '@/goals/domain/goal-schedule';
+import type { GoalMeasurement } from '@/goals/domain/goal-measurement';
+import { goalOutcome } from '@/goal-metrics/domain/goal-outcome';
+import { latestMetricValue } from '@/goal-metrics/domain/metric-rules';
+import { localDateKey } from '@/utils/timezone';
 import type { CreateGoalDto } from './dto/create-goal.dto';
 import type { UpdateGoalDto } from './dto/update-goal.dto';
 import type { GoalResponseDto } from './dto/goal-response.dto';
@@ -19,6 +27,10 @@ function present(goal: LifeGoal): GoalResponseDto {
     description: goal.description,
     horizon: goal.horizon,
     target: goal.target,
+    measurement: goal.measurement,
+    startDate: goal.startDate,
+    dueDate: goal.dueDate,
+    ...(scheduleOf(goal) ? { checkin: scheduleOf(goal) } : {}),
     parentId: goal.parentId,
     createdAt: goal.createdAt.toISOString(),
   };
@@ -69,14 +81,24 @@ export class GoalsService {
       await this.validateArea(manager, userId, input.areaId);
       const id = randomUUID();
       await this.validateParent(manager, userId, id, input.parentId ?? null);
+      const timezone = (await manager.getRepository(User).findOneByOrFail({ id: userId })).timezone;
       const repo = manager.getRepository(LifeGoal);
-      const created = await repo.save(repo.create({
-        ...input,
+      const { checkin, ...data } = input;
+      const createdEntity = repo.create({
+        ...data,
+        measurement: input.measurement ?? { type: 'activity' },
+        startDate: input.startDate ?? null,
+        dueDate: input.dueDate ?? null,
         parentId: input.parentId ?? null,
         id,
         userId,
         focusPosition: null,
-      }));
+      });
+      if (createdEntity.startDate && createdEntity.dueDate && createdEntity.startDate > createdEntity.dueDate) {
+        throw new BadRequestException('startDate must be <= dueDate');
+      }
+      assignSchedule(createdEntity, createdEntity.measurement, checkin, timezone, true);
+      const created = await repo.save(createdEntity);
       return present(created);
     });
   }
@@ -90,12 +112,32 @@ export class GoalsService {
       if (input.parentId !== undefined) {
         await this.validateParent(manager, userId, goalId, input.parentId);
       }
-      // DTO classes may contain initialized-but-undefined optional fields.
-      // Do not overwrite existing entity fields with them on PATCH.
-      const changes = Object.fromEntries(
-        Object.entries(input).filter(([, value]) => value !== undefined),
-      );
+      const timezone = (await manager.getRepository(User).findOneByOrFail({ id: userId })).timezone;
+      const previous: GoalMeasurement = goal.measurement;
+      const priorLatest = previous.type === 'activity' ? null : await latestMetricValue(manager, userId, goalId);
+      const wasCompleted = goalOutcome(previous, priorLatest).completed;
+      const incoming = input.measurement ?? previous;
+      const incompatible = previous.type !== incoming.type ||
+        (previous.type === 'numeric' && incoming.type === 'numeric' && previous.direction !== incoming.direction);
+      const { checkin, ...data } = input;
+      const changes = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
       Object.assign(goal, changes);
+      if (goal.startDate && goal.dueDate && goal.startDate > goal.dueDate) {
+        throw new BadRequestException('startDate must be <= dueDate');
+      }
+      if (incompatible) {
+        // Changing the measurement kind invalidates its old observations and check-ins.
+        await manager.getRepository(GoalCheckin).delete({ goalId, userId });
+        await manager.getRepository(GoalMetricEntry).delete({ goalId, userId });
+      }
+      if (incompatible || checkin !== undefined) {
+        assignSchedule(goal, incoming, checkin, timezone, incompatible);
+      }
+      if (!incompatible && wasCompleted && !goalOutcome(incoming, priorLatest).completed && goal.checkinFromDate) {
+        // Changing a result target can re-open a completed goal without backfilling its paused dates.
+        const today = localDateKey(timezone);
+        if (goal.checkinFromDate < today) goal.checkinFromDate = today;
+      }
       const updated = await repo.save(goal);
       return present(updated);
     });

@@ -1,4 +1,4 @@
-# Lifeboard Backend v0.6.0 — Private File Storage
+# Lifeboard Backend v0.6.1 — Private File Storage
 
 NestJS 11 · PostgreSQL 17 · TypeORM · Bun · Node.js 24 runtime · AWS SDK v3 · S3-compatible storage. Existing frontend remains unchanged.
 
@@ -137,3 +137,108 @@ Deletion first soft-deletes metadata so the user immediately loses access, then 
 ## Verification
 
 The source and Postman collection are included. Run `bun install && bun run typecheck && bun run test && bun run build && bun run db:migrate` locally before deployment; the distributed archive intentionally does not contain generated `bun.lock` or `node_modules`. Commit the locally generated `bun.lock` and keep it frozen in Docker. Live S3 uploads and PostgreSQL migration need your local runtime to validate end to end.
+
+---
+
+# Goal Metrics + Weekly Check-ins — Backend v0.6.1 (2026-11-06)
+
+This release is an **additive change to the existing NestJS modular monolith** (v0.6.0). It does not modify the Vue frontend, rewrite Auth/Users/Goals, or drop existing data. The Swagger dependency (`@nestjs/swagger`) is new. Use **Bun** to install and run scripts.
+
+## Schema and module boundaries
+
+- `goals/`: existing `LifeGoal`, now with `measurement` (`activity`, `binary`, `numeric`), optional `startDate` / `dueDate`, and check-in schedule mapped to typed columns (`checkin_frequency`, `checkin_weekday`, `checkin_from_date`). `target` **still means planned routine completions**.
+- `goal-metrics/`: dated result measurements in `goal_metric_entries`. Latest measurement by `(date, createdAt, id)` determines numeric/binary outcome; deletions are supported.
+- `goal-checkins/`: completed facts in `goal_checkins`, and `CheckinScheduleService` for on-demand due-date calculation. `unchanged` and `skipped` never insert a metric.
+- `users/`: IANA `timezone`, defaults to **UTC** (never depends on host machine time zone).
+- `progress/`: existing routine progress retained in `activity`; main `percent` and `outcome` now use the result measurement where applicable.
+
+Ownership is enforced by both services (`userId` from HttpOnly session) and composite PostgreSQL foreign keys. `UNIQUE(goal_id, due_date)` prevents duplicate completed check-ins. FK from a completed check-in to an individual metric is nullable and `ON DELETE SET NULL (metric_entry_id)`; deleting the metric retains the check-in history. Deleting a goal cascades both histories.
+
+The migration `1794282000000-CreateGoalMetricsAndCheckins.ts` does not delete old goals. Goals without a measurement become `activity`. If the DB already contains measured goals without a schedule, their schedule is initialized from **migration day in the user's timezone**, weekly/Sunday, without historical overdue dates. The migration expects **PostgreSQL 17+**, as does the older composite `ON DELETE SET NULL` migration.
+
+## REST contract (all endpoints under `/api/v1`, authenticated)
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET/POST | `/goals/:goalId/metrics` | List/add dated manual measurements |
+| DELETE | `/goals/:goalId/metrics/:entryId` | Remove a measurement; check-in remains |
+| GET | `/goal-checkins/due` | Earliest pending per goal, with additional `pendingCount` |
+| GET | `/goals/:goalId/checkins` | Completed history |
+| POST | `/goals/:goalId/checkins` | Close the **earliest** pending scheduled date |
+| PATCH | `/users/me/timezone` | Change IANA timezone `{ "timezone": "Europe/Amsterdam" }` |
+| GET | `/goals/:goalId/progress` | Outcome as well as existing routine progress |
+| POST/PATCH | `/goals`, `/goals/:goalId` | Extended with `measurement`, `startDate`, `dueDate`, `checkin` |
+
+The new measurement field in goal create/update takes one of:
+
+```json
+{"type":"activity"}
+{"type":"binary"}
+{"type":"numeric","direction":"increase","unit":"USD","startValue":20000,"targetValue":100000}
+```
+
+New numeric/binary goals default to `{ "frequency":"weekly", "weekday":7, "fromDate":"<today in user timezone>" }`. Pass `checkin` explicitly to choose `daily`, `weekly`, `manual`, or `off` (including `fromDate`). On frequency/weekday changes the activation resets to **today** (or a later supplied date); past completed rows are retained. A weekly completion covers the whole **ISO week**, including if the chosen weekday changes, so one week is not double-counted. No future scheduled rows are written to the database.
+
+Examples:
+
+```http
+POST /api/v1/goals/{goalId}/checkins
+Content-Type: application/json
+
+{"dueDate":"2026-11-08","status":"updated","value":35000,"note":"Deposit"}
+```
+
+```http
+POST /api/v1/goals/{goalId}/checkins
+Content-Type: application/json
+
+{"dueDate":"2026-11-08","status":"unchanged"}
+```
+
+```http
+POST /api/v1/goals/{goalId}/checkins
+Content-Type: application/json
+
+{"dueDate":"2026-11-08","status":"skipped"}
+```
+
+`updated` writes both a measurement (dated **actual local completion date**, not scheduled due date) and a check-in in one transaction. Numeric updated requires `value`; binary updated always records `1` (value may be omitted). The `note` is limited to 300 characters. Other statuses are check-in-only. The same exact request is idempotent; a conflicting retry returns `409`.
+
+`GET /goal-checkins/due` returns items like:
+
+```json
+[{"goalId":"<uuid>","dueDate":"2026-11-08","overdue":false,"pendingCount":2,
+  "outcome":{"type":"numeric","percent":18.75,"completed":false,"currentValue":35000,
+    "startValue":20000,"targetValue":100000,"unit":"USD","direction":"increase"}}]
+```
+
+`pendingCount` counts **additional pending dates** beyond the one in `dueDate`. When the latest result is 100%, the endpoint returns no pending reminder for that goal until the result changes. Historical check-ins are still readable.
+
+## Migrations, build, testing
+
+```bash
+bun install
+bun run typecheck
+bun run test
+bun run build
+bun run db:migrate
+bun run start:dev
+```
+
+Inspect `bun.lock` before committing and never overwrite `.env` or the PostgreSQL volume. For a real PostgreSQL integration test, provision a **separate** database ending `_test` with the same Postgres user credentials and run:
+
+```bash
+# Example: create one-time dedicated test DB, not the application DB
+# docker compose exec db psql -U lifeboard -d postgres -c 'CREATE DATABASE lifeboard_test;'
+TEST_DB_NAME=lifeboard_test bun run test:integration
+```
+
+The integration test runs migrations in the dedicated test database and checks atomic rollback, ownership, uniqueness, FK `SET NULL`, and cascade deletion. Do **not** point `TEST_DB_NAME` at a database holding application data. HTTP session/auth tests still need a full deployment environment.
+
+OpenAPI UI: `GET /api/docs`; JSON specification: `GET /api/docs-json`. Postman collection: `postman/Lifeboard-Goal-Checkins-v0.6.1.postman_collection.json`. Swagger UI is documentation; for cookie-authenticated unsafe requests the origin restriction configured in `main.ts` may block “Try it out” from the backend origin. Postman uses the normal session cookie without a browser Origin header.
+
+### Upgrade caveats
+
+- The frontend v0.15.1 source archive was not present in the available files during this backend update; the frontend's v0.15.1 README and the supplied API/data-model specification were used. Check the exact discriminated `GoalMeasurement` TypeScript shape against `types.ts` before connecting the frontend.
+- The code and isolated calendar tests were checked without installing new npm packages; complete compilation, test suite, PostgreSQL migration, and live HTTP contract must be validated locally using Bun.
+- Existing JSON backups need a separate import pipeline; this change does **not** automatically import browser `localStorage` into PostgreSQL.
