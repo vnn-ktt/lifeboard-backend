@@ -22,6 +22,9 @@ export class User {
   @Column({ type: 'varchar', length: 400, default: '' })
   about!: string;
 
+  @Column({ name: 'avatar_file_id', type: 'uuid', nullable: true })
+  avatarFileId!: string | null;
+
   /** Never select password material by default. */
   @Column({ name: 'password_hash', type: 'varchar', length: 255, select: false })
   passwordHash!: string;

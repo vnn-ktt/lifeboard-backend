@@ -254,3 +254,15 @@ OpenAPI UI: `GET /api/docs`; JSON specification: `GET /api/docs-json`. Postman c
 - New migration: `1794368400000-CreateGoalExecution.ts` (additive; old goals remain `active`, no synthetic events).
 
 This release does not automatically connect frontend localStorage, and the existing frontend is not modified.
+
+## v0.8.0 — Notes, Quotes, Profile & Preferences
+
+The v0.8.0 backend adds authenticated CRUD for `notes` and `note-groups`, a read-only RU/EN/DE system quote catalog with per-user dashboard/review assignments, profile editing and avatars, and per-user UI preferences. Existing `POST /api/v1/files` uploads images to S3; notes and avatars store UUID file references, not Base64.
+
+- Notes: `GET/POST /api/v1/notes`, `GET/PATCH/DELETE /api/v1/notes/:id`; optional GET filters `groupId`, `goalId`, `pinned`.
+- Note groups: `GET/POST /api/v1/note-groups`, `PATCH/DELETE /api/v1/note-groups/:id`.
+- Quotes: `GET /api/v1/quotes`, `GET/PUT /api/v1/quotes/assignments` (`dashboard`, `review`).
+- Profile: `GET/PATCH /api/v1/users/me`, `PUT /api/v1/users/me/avatar` with `{fileId}` (upload first via `/files`).
+- Preferences: `GET/PUT /api/v1/users/me/preferences` with `theme`, `language`, `goalEntryMode`, `showHelper`, `privacy.showAvatar`, `privacy.maskStats`.
+
+See [v0.8.0 API and migration guide](docs/CONTENT-ACCOUNT-v0.8.0.md) and [Postman collection](postman/Lifeboard-v0.8.0-content-account.postman_collection.json). This release **does not** migrate browser localStorage; v0.9.0 will handle legacy IDs, data URLs and backups with explicit user approval.
