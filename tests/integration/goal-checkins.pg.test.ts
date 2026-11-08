@@ -34,7 +34,7 @@ test('Goal check-ins: PG transactions, uniqueness, ownership, delete rules', asy
         about: '', timezone: 'UTC', passwordHash: 'test-no-login' });
     }
     await ds.getRepository(LifeGoal).insert({ id: goalId, userId: alice, areaId: 'career',
-      title: 'Savings', description: '', target: 12, horizon: 'year', parentId: null, focusPosition: null,
+      title: 'Savings', description: '', target: 12, horizon: 'year', parentId: null, focusPosition: null, status: 'active', completedAt: null,
       startDate: null, dueDate: null, measurement: { type: 'numeric', direction: 'increase',
         startValue: 0, targetValue: 10000, unit: 'USD' },
       checkinFrequency: 'daily', checkinWeekday: null, checkinFromDate: '2026-11-05' });

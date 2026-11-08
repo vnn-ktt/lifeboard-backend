@@ -24,6 +24,15 @@ export function horizonBounds(horizon: GoalHorizon, at: string): { from: string;
   return { from, toExclusive };
 }
 
+/** Fixed goal dates take precedence when both bounds are provided; older goals retain their horizon period. */
+export function goalPeriodBounds(
+  goal: { horizon: GoalHorizon; startDate: string | null; dueDate: string | null }, at: string,
+): { from: string; toExclusive: string } {
+  return goal.startDate && goal.dueDate
+    ? { from: goal.startDate, toExclusive: addDays(goal.dueDate, 1) }
+    : horizonBounds(goal.horizon, at);
+}
+
 /** The first 7 dates of the ISO week containing date. */
 export function weekDates(date: string): string[] {
   const monday = mondayOf(date);

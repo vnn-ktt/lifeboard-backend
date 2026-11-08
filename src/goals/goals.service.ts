@@ -8,7 +8,7 @@ import { User } from '@/users/entities/user.entity';
 import { GoalMetricEntry } from '@/goal-metrics/entities/goal-metric-entry.entity';
 import { GoalCheckin } from '@/goal-checkins/entities/goal-checkin.entity';
 import { assignSchedule, scheduleOf } from '@/goals/domain/goal-schedule';
-import type { GoalMeasurement } from '@/goals/domain/goal-measurement';
+import { normalizeGoalMeasurement, presentGoalMeasurement, type GoalMeasurement } from '@/goals/domain/goal-measurement';
 import { goalOutcome } from '@/goal-metrics/domain/goal-outcome';
 import { latestMetricValue } from '@/goal-metrics/domain/metric-rules';
 import { localDateKey } from '@/utils/timezone';
@@ -19,7 +19,7 @@ import { createsGoalCycle } from './domain/goal-rules';
 import { UserWriteLock } from '@/common/user-write-lock/user-write-lock.service';
 
 /** Keep public JSON shape compatible with the current Vue frontend. */
-function present(goal: LifeGoal): GoalResponseDto {
+export function presentGoal(goal: LifeGoal): GoalResponseDto {
   return {
     id: goal.id,
     areaId: goal.areaId,
@@ -27,11 +27,13 @@ function present(goal: LifeGoal): GoalResponseDto {
     description: goal.description,
     horizon: goal.horizon,
     target: goal.target,
-    measurement: goal.measurement,
+    measurement: presentGoalMeasurement(goal.measurement),
     startDate: goal.startDate,
     dueDate: goal.dueDate,
     ...(scheduleOf(goal) ? { checkin: scheduleOf(goal) } : {}),
     parentId: goal.parentId,
+    status: goal.status,
+    completedAt: goal.completedAt?.toISOString() ?? null,
     createdAt: goal.createdAt.toISOString(),
   };
 }
@@ -45,13 +47,13 @@ export class GoalsService {
 
   async list(userId: string): Promise<GoalResponseDto[]> {
     const goals = await this.goals.find({ where: { userId }, order: { createdAt: 'ASC', id: 'ASC' } });
-    return goals.map(present);
+    return goals.map(presentGoal);
   }
 
   async get(userId: string, goalId: string): Promise<GoalResponseDto> {
     const goal = await this.goals.findOneBy({ id: goalId, userId });
     if (!goal) throw new NotFoundException('Goal not found');
-    return present(goal);
+    return presentGoal(goal);
   }
 
   private async validateArea(manager: EntityManager, userId: string, areaId: string): Promise<void> {
@@ -83,23 +85,25 @@ export class GoalsService {
       await this.validateParent(manager, userId, id, input.parentId ?? null);
       const timezone = (await manager.getRepository(User).findOneByOrFail({ id: userId })).timezone;
       const repo = manager.getRepository(LifeGoal);
-      const { checkin, ...data } = input;
+      const { checkin, measurement: _inputMeasurement, ...data } = input;
       const createdEntity = repo.create({
         ...data,
-        measurement: input.measurement ?? { type: 'activity' },
+        measurement: input.measurement ? normalizeGoalMeasurement(input.measurement) : { type: 'activity' },
         startDate: input.startDate ?? null,
         dueDate: input.dueDate ?? null,
         parentId: input.parentId ?? null,
         id,
         userId,
         focusPosition: null,
+        status: 'active',
+        completedAt: null,
       });
       if (createdEntity.startDate && createdEntity.dueDate && createdEntity.startDate > createdEntity.dueDate) {
         throw new BadRequestException('startDate must be <= dueDate');
       }
       assignSchedule(createdEntity, createdEntity.measurement, checkin, timezone, true);
       const created = await repo.save(createdEntity);
-      return present(created);
+      return presentGoal(created);
     });
   }
 
@@ -116,12 +120,13 @@ export class GoalsService {
       const previous: GoalMeasurement = goal.measurement;
       const priorLatest = previous.type === 'activity' ? null : await latestMetricValue(manager, userId, goalId);
       const wasCompleted = goalOutcome(previous, priorLatest).completed;
-      const incoming = input.measurement ?? previous;
+      const incoming = input.measurement ? normalizeGoalMeasurement(input.measurement) : previous;
       const incompatible = previous.type !== incoming.type ||
         (previous.type === 'numeric' && incoming.type === 'numeric' && previous.direction !== incoming.direction);
-      const { checkin, ...data } = input;
+      const { checkin, measurement: _inputMeasurement, ...data } = input;
       const changes = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
       Object.assign(goal, changes);
+      goal.measurement = incoming;
       if (goal.startDate && goal.dueDate && goal.startDate > goal.dueDate) {
         throw new BadRequestException('startDate must be <= dueDate');
       }
@@ -139,7 +144,7 @@ export class GoalsService {
         if (goal.checkinFromDate < today) goal.checkinFromDate = today;
       }
       const updated = await repo.save(goal);
-      return present(updated);
+      return presentGoal(updated);
     });
   }
 

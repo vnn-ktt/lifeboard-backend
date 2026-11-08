@@ -242,3 +242,15 @@ OpenAPI UI: `GET /api/docs`; JSON specification: `GET /api/docs-json`. Postman c
 - The frontend v0.15.1 source archive was not present in the available files during this backend update; the frontend's v0.15.1 README and the supplied API/data-model specification were used. Check the exact discriminated `GoalMeasurement` TypeScript shape against `types.ts` before connecting the frontend.
 - The code and isolated calendar tests were checked without installing new npm packages; complete compilation, test suite, PostgreSQL migration, and live HTTP contract must be validated locally using Bun.
 - Existing JSON backups need a separate import pipeline; this change does **not** automatically import browser `localStorage` into PostgreSQL.
+
+
+## v0.7.0 — Goals Execution (frontend v0.17.1 contract)
+
+- Modules: `milestones`, `tasks`, `goal-status`; goal status and completion metadata added to existing `life_goals`.
+- Atomic and idempotent status events; milestone and task CRUD/completion; Today `/tasks/due` API.
+- `measurement.kind` requests accepted alongside legacy `measurement.type` with normalized storage.
+- Detailed REST contract and migration/testing guidance: [`docs/GOALS-EXECUTION-v0.7.0.md`](docs/GOALS-EXECUTION-v0.7.0.md).
+- Postman: `postman/Lifeboard-v0.7.0-goals-execution.postman_collection.json`.
+- New migration: `1794368400000-CreateGoalExecution.ts` (additive; old goals remain `active`, no synthetic events).
+
+This release does not automatically connect frontend localStorage, and the existing frontend is not modified.

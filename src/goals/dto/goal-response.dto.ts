@@ -1,5 +1,6 @@
+import type { GoalStatus } from '@/goal-status/domain/goal-status';
 import type { GoalHorizon } from '@/goals/entities/life-goal.entity';
-import type { GoalMeasurement, GoalCheckinSchedule } from '@/goals/domain/goal-measurement';
+import type { GoalMeasurementResponse, GoalCheckinSchedule } from '@/goals/domain/goal-measurement';
 
 export interface GoalResponseDto {
   id: string;
@@ -8,10 +9,12 @@ export interface GoalResponseDto {
   description: string;
   horizon: GoalHorizon;
   target: number;
-  measurement: GoalMeasurement;
+  measurement: GoalMeasurementResponse;
   startDate: string | null;
   dueDate: string | null;
   checkin?: GoalCheckinSchedule;
   parentId: string | null;
+  status: GoalStatus;
+  completedAt: string | null;
   createdAt: string;
 }

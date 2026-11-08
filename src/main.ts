@@ -22,7 +22,7 @@ async function bootstrap(): Promise<void> {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Lifeboard REST API')
     .setDescription('Private session-based Lifeboard API. Authentication requires a lifeboard.sid cookie.')
-    .setVersion('0.6.1')
+    .setVersion('0.7.0')
     .addCookieAuth('lifeboard.sid', { type: 'apiKey', in: 'cookie', name: 'lifeboard.sid' }, 'lifeboard.sid')
     .build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig), {
@@ -31,7 +31,8 @@ async function bootstrap(): Promise<void> {
 
   const config = app.get(ConfigService);
   const webOrigin = config.getOrThrow<string>('WEB_ORIGIN');
-  app.enableCors({ origin: webOrigin, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] });
+  app.enableCors({ origin: webOrigin, credentials: true, exposedHeaders: ['X-Next-Cursor'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] });
 
   // Cookie-based auth requires a CSRF defense. Browser cross-origin unsafe
   // requests are only accepted from our explicitly configured web origin.

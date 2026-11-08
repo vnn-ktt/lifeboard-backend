@@ -3,7 +3,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsInt, IsString, IsUUID, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
 import { trimString } from '@/utils/string-transformers';
 import type { GoalHorizon } from '@/goals/entities/life-goal.entity';
-import type { GoalMeasurement } from '@/goals/domain/goal-measurement';
+import type { GoalMeasurementInput } from '@/goals/domain/goal-measurement';
 import { IsGoalMeasurement } from '@/goals/dto/goal-measurement.dto';
 import { GoalCheckinScheduleDto } from '@/goals/dto/goal-checkin-schedule.dto';
 import { IsDateKey } from '@/utils/validators/is-date-key.decorator';
@@ -36,10 +36,10 @@ export class CreateGoalDto {
 
 
   @ValidateIf((_object, value: unknown) => value !== undefined)
-  @ApiPropertyOptional({ description: 'activity | binary | numeric (direction, unit, startValue, targetValue)',
-    example: { type: 'numeric', direction: 'increase', unit: 'USD', startValue: 0, targetValue: 100000 } })
+  @ApiPropertyOptional({ description: 'Discriminator kind (v0.17.1) or type (legacy v0.6.1), plus numeric fields',
+    example: { kind: 'numeric', direction: 'increase', unit: 'USD', startValue: 0, targetValue: 100000 } })
   @IsGoalMeasurement()
-  measurement?: GoalMeasurement;
+  measurement?: GoalMeasurementInput;
 
   @ValidateIf((_object, value: unknown) => value !== undefined && value !== null)
   @ApiPropertyOptional({ format: 'date', nullable: true })

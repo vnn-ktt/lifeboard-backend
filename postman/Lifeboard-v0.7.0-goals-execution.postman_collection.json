@@ -1,0 +1,671 @@
+{
+  "info": {
+    "name": "Lifeboard Backend v0.7.0 — Goals Execution",
+    "_postman_id": "d6fdb10e-59ef-4a6d-b85d-f80a120aa1d7",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Auth uses HttpOnly lifeboard.sid cookie. Run in sequence. Date for due tasks is explicit. Private user data remains isolated."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "email",
+      "value": "ivan@example.com"
+    },
+    {
+      "key": "password",
+      "value": "MyStrongPassword123!"
+    },
+    {
+      "key": "goalId",
+      "value": ""
+    },
+    {
+      "key": "milestoneId",
+      "value": ""
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "02 Create goal (frontend kind)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"areaId\": \"career\",\n  \"title\": \"Deliver Lifeboard MVP\",\n  \"description\": \"Status timeline, milestones and tasks\",\n  \"horizon\": \"year\",\n  \"target\": 12,\n  \"measurement\": {\n    \"kind\": \"activity\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('2xx',()=>pm.expect(pm.response.code).to.be.within(200,299));",
+              "const data=pm.response.json(); if(data.id) pm.collectionVariables.set('goalId',data.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Get goal",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 Set paused",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"paused\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "05 Repeat paused (must be idempotent)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"paused\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "06 Status history (array + X-Next-Cursor)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/status-events?limit=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "status-events?limit=1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 Set active",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"active\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "08 Create milestone",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/milestones",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "milestones"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Backend integration\",\n  \"description\": \"Implement domain endpoints\",\n  \"order\": 0,\n  \"dueDate\": \"2026-12-01\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Created',()=>pm.expect(pm.response.code).to.equal(201));",
+              "const data=pm.response.json();pm.collectionVariables.set('milestoneId',data.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 List milestones",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/milestones",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "milestones"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 Update milestone",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/milestones/{{milestoneId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "milestones",
+            "{{milestoneId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Backend verified\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "11 Complete milestone",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/milestones/{{milestoneId}}/completion",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "milestones",
+            "{{milestoneId}}",
+            "completion"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"completed\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "12 Create task",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/tasks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "tasks"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Test REST API\",\n  \"description\": \"Run Postman collection\",\n  \"milestoneId\": \"{{milestoneId}}\",\n  \"dueDate\": \"2026-12-01\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Created',()=>pm.expect(pm.response.code).to.equal(201));",
+              "const data=pm.response.json();pm.collectionVariables.set('taskId',data.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 List tasks",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/tasks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "tasks"
+          ]
+        }
+      }
+    },
+    {
+      "name": "14 Due tasks for date",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tasks/due?date=2026-12-01",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "tasks",
+            "due?date=2026-12-01"
+          ]
+        }
+      }
+    },
+    {
+      "name": "15 Complete task",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/tasks/{{taskId}}/completion",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "tasks",
+            "{{taskId}}",
+            "completion"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"completed\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "16 Repeat task completion",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/tasks/{{taskId}}/completion",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "tasks",
+            "{{taskId}}",
+            "completion"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"completed\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "17 Undo task completion",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/tasks/{{taskId}}/completion",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "tasks",
+            "{{taskId}}",
+            "completion"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"completed\": false\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "18 Update task",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/tasks/{{taskId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "tasks",
+            "{{taskId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"milestoneId\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "19 Delete milestone (task survives)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/milestones/{{milestoneId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "milestones",
+            "{{milestoneId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "20 Task remains after milestone delete",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/tasks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "tasks"
+          ]
+        }
+      }
+    },
+    {
+      "name": "21 Attempt invalid status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"archived\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "22 Delete task",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/goals/{{goalId}}/tasks/{{taskId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "goals",
+            "{{goalId}}",
+            "tasks",
+            "{{taskId}}"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import { goalOutcome } from '@/goal-metrics/domain/goal-outcome';
 import { LifeRoutine } from '@/routines/entities/life-routine.entity';
 import { RoutineCheck } from '@/routines/entities/routine-check.entity';
 import { addDays, mondayOf, todayUtc } from '@/utils/date-key';
-import { goalCompletionPercent, horizonBounds, weeklyPlanStats } from '@/progress/domain/progress-rules';
+import { goalCompletionPercent, goalPeriodBounds, weeklyPlanStats } from '@/progress/domain/progress-rules';
 import type { GoalProgressResponseDto } from '@/progress/dto/goal-progress-response.dto';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class ProgressService {
   async goal(userId: string, goalId: string, at: string = todayUtc()): Promise<GoalProgressResponseDto> {
     const goal = await this.goals.findOneBy({ id: goalId, userId });
     if (!goal) throw new NotFoundException('Goal not found');
-    const period = horizonBounds(goal.horizon, at);
+    const period = goalPeriodBounds(goal, at);
     const result = await this.checks.createQueryBuilder('completion')
       .innerJoin(LifeRoutine, 'routine', 'routine.id = completion.routineId AND routine.userId = :userId', { userId })
       .select('COUNT(*)', 'done')
