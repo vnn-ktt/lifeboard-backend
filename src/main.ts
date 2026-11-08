@@ -31,7 +31,8 @@ async function bootstrap(): Promise<void> {
 
   const config = app.get(ConfigService);
   const webOrigin = config.getOrThrow<string>('WEB_ORIGIN');
-  app.enableCors({ origin: webOrigin, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] });
+  app.enableCors({ origin: webOrigin, credentials: true, exposedHeaders: ['X-Next-Cursor'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] });
 
   // Cookie-based auth requires a CSRF defense. Browser cross-origin unsafe
   // requests are only accepted from our explicitly configured web origin.

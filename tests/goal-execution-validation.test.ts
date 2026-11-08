@@ -49,5 +49,7 @@ test('v0.17.1 kind and legacy type both accepted without changing persisted shap
   assert.deepEqual(internal, { type: 'numeric', direction: 'increase', startValue: 0, targetValue: 10, unit: 'kg' });
   assert.deepEqual(presentGoalMeasurement(internal), { ...internal, kind: 'numeric' });
   assert.equal(validGoalMeasurement({ type: 'binary' }), true);
-  assert.equal(validGoalMeasurement({ kind: 'binary', type: 'binary' }), false);
+  assert.equal(validGoalMeasurement({ kind: 'binary', type: 'binary' }), true);
+  assert.deepEqual(normalizeGoalMeasurement({ kind: 'binary', type: 'binary' } as any), { type: 'binary' });
+  assert.equal(validGoalMeasurement({ kind: 'binary', type: 'activity' }), false);
 });

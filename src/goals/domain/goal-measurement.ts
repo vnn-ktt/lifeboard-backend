@@ -12,7 +12,10 @@ export type GoalMeasurementInput = GoalMeasurement | FrontendGoalMeasurement;
 export type GoalMeasurementResponse = GoalMeasurement & { kind: GoalMeasurement['type'] };
 
 export function normalizeGoalMeasurement(input: GoalMeasurementInput): GoalMeasurement {
-  if ('type' in input) return input;
+  if ('type' in input) {
+    const { kind: _responseOnlyKind, ...persisted } = input as GoalMeasurementResponse;
+    return persisted;
+  }
   const { kind, ...details } = input;
   return { type: kind, ...details } as GoalMeasurement;
 }
@@ -32,11 +35,13 @@ export interface GoalCheckinSchedule {
 export function validGoalMeasurement(input: unknown): input is GoalMeasurementInput {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return false;
   const obj = input as Record<string, unknown>;
-  // Do not permit both discriminators or extra keys in persisted JSON.
+  // The response contains both for backwards compatibility, and can be submitted again as-is.
+  // Reject contradictory values and any unrelated properties.
   const discriminator = 'kind' in obj ? 'kind' : 'type';
-  if ('kind' in obj && 'type' in obj) return false;
+  const both = 'kind' in obj && 'type' in obj;
+  if (both && obj.kind !== obj.type) return false;
   const kind = obj[discriminator];
-  if (kind === 'activity' || kind === 'binary') return Object.keys(obj).length === 1;
+  if (kind === 'activity' || kind === 'binary') return Object.keys(obj).length === (both ? 2 : 1);
   if (kind !== 'numeric') return false;
   if (!['increase', 'decrease'].includes(String(obj.direction)) ||
     typeof obj.unit !== 'string' || obj.unit.length > 32 ||
@@ -46,5 +51,5 @@ export function validGoalMeasurement(input: unknown): input is GoalMeasurementIn
     obj.startValue === obj.targetValue) return false;
   if (obj.direction === 'increase' && obj.targetValue < obj.startValue) return false;
   if (obj.direction === 'decrease' && obj.targetValue > obj.startValue) return false;
-  return Object.keys(obj).sort().join(',') === ['direction', discriminator, 'startValue', 'targetValue', 'unit'].sort().join(',');
+  return Object.keys(obj).sort().join(',') === ['direction', discriminator, 'startValue', 'targetValue', 'unit', ...(both ? ['type'] : [])].sort().join(',');
 }

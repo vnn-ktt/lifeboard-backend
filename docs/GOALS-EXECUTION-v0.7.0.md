@@ -9,7 +9,7 @@ Implemented against frontend integration contract **v0.17.1**. The frontend rema
 - Status transitions are serialized by `UserWriteLock`; status and event insert occur in the **same transaction**. Repeating the same status creates no event. Historical status events are not invented for existing goals.
 - Measured goal check-ins are exposed only for `active` goals. Switching back to `active` reactivates the check-in schedule no earlier than the user's local current date, preserving prior history.
 - Milestone deletion **detaches** tasks using PostgreSQL 17 composite FK `ON DELETE SET NULL (milestone_id)`, while deleting the parent goal cascades its milestones, tasks and status history.
-- `measurement.kind` from frontend v0.17.1 and legacy `measurement.type` from v0.6.1 are both accepted by the Goals DTO; internally PostgreSQL retains `type`. API responses include **both** `kind` and `type` to avoid breaking older clients. Do not put both in request JSON.
+- `measurement.kind` from frontend v0.17.1 and legacy `measurement.type` from v0.6.1 are both accepted by the Goals DTO; internally PostgreSQL retains `type`. API responses include **both** `kind` and `type` to avoid breaking older clients. Round-trip requests may contain both as long as the discriminators match.
 - `LifeGoal.target` remains the routine completion plan. Completing a task or milestone does **not** change outcome percentage. Fixed `startDate` and `dueDate` now override rolling horizon bounds for routine progress when both are present.
 
 ## REST API
@@ -30,7 +30,7 @@ All routes are under `/api/v1`, authenticated via HttpOnly `lifeboard.sid` cooki
 
 Date-only values remain literal local `YYYY-MM-DD`. `completedAt`, `createdAt`, and `changedAt` are UTC ISO 8601 timestamps. Task and milestone `dueDate` may be absent; API omits the field when absent and emits `completedAt: null` for an open item. `title` length 2–90, `description` length <= 500, `order` integer 0–10000. Input DTOs require no additional dependencies.
 
-Status timeline endpoint returns an **array**, matching the v0.17.1 example. For a paginated next page, send the opaque `X-Next-Cursor` header value as `cursor` query parameter. The client must read this response header through the same-origin proxy; expose it through CORS if needed in a cross-origin development setup.
+Status timeline endpoint returns an **array**, matching the v0.17.1 example. For a paginated next page, send the opaque `X-Next-Cursor` header value as `cursor` query parameter. The client must read this response header through the same-origin proxy; the CORS configuration explicitly exposes `X-Next-Cursor`.
 
 ## Upgrade / testing
 
