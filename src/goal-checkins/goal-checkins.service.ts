@@ -34,7 +34,7 @@ export class GoalCheckinsService {
     const user = await this.users.findOneByOrFail({ id: userId });
     const today = this.schedule.today(user.timezone);
     const goals = (await this.goals.find({ where: { userId }, order: { createdAt: 'ASC' } }))
-      .filter(goal => goal.measurement.type !== 'activity' && goal.checkinFrequency &&
+      .filter(goal => goal.status === 'active' && goal.measurement.type !== 'activity' && goal.checkinFrequency &&
         goal.checkinFrequency !== 'off' && goal.checkinFrequency !== 'manual');
     if (goals.length === 0) return [];
     const goalIds = goals.map(goal => goal.id);
@@ -72,6 +72,7 @@ export class GoalCheckinsService {
     try { return await this.lock.run(userId, async manager => {
       const goal = await manager.getRepository(LifeGoal).findOneBy({ id: goalId, userId });
       if (!goal) throw new NotFoundException('Goal not found');
+      if (goal.status !== 'active') throw new ConflictException('Goal is not active');
       if (goal.measurement.type === 'activity') throw new BadRequestException('Activity goals do not have check-ins');
       const user = await manager.getRepository(User).findOneByOrFail({ id: userId });
       const today = this.schedule.today(user.timezone);

@@ -13,7 +13,7 @@ const goalId = 'b147ddcd-19c5-4719-a4be-8081df6c8235';
 
 function fixture() {
   const goal = {
-    id: goalId, userId, measurement: { type: 'numeric', direction: 'increase', unit: 'USD',
+    id: goalId, userId, status: 'active', measurement: { type: 'numeric', direction: 'increase', unit: 'USD',
       startValue: 1000, targetValue: 10000 },
     checkinFrequency: 'daily', checkinFromDate: '2026-11-05', checkinWeekday: null,
     startDate: null, dueDate: null,

@@ -40,3 +40,11 @@ test('weekly stats count only scheduled occurrences and allow undo', () => {
   checked.delete('2026-11-02|daily');
   assert.equal(weeklyPlanStats(routines, checked, '2026-11-05').done, 1);
 });
+
+import { goalPeriodBounds } from '@/progress/domain/progress-rules';
+test('fixed goal dates override calendar horizon; legacy goals retain horizon', () => {
+  assert.deepEqual(goalPeriodBounds({ horizon: 'month', startDate: '2026-10-10', dueDate: '2026-12-02' }, '2026-11-08'),
+    { from: '2026-10-10', toExclusive: '2026-12-03' });
+  assert.deepEqual(goalPeriodBounds({ horizon: 'month', startDate: null, dueDate: null }, '2026-11-08'),
+    { from: '2026-11-01', toExclusive: '2026-12-01' });
+});

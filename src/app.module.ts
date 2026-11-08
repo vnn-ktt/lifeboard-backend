@@ -16,6 +16,9 @@ import { ReviewsModule } from '@/reviews/reviews.module';
 import { FilesModule } from '@/files/files.module';
 import { GoalMetricsModule } from '@/goal-metrics/goal-metrics.module';
 import { GoalCheckinsModule } from '@/goal-checkins/goal-checkins.module';
+import { GoalStatusModule } from '@/goal-status/goal-status.module';
+import { MilestonesModule } from '@/milestones/milestones.module';
+import { TasksModule } from '@/tasks/tasks.module';
 
 @Module({
   imports: [
@@ -49,6 +52,9 @@ import { GoalCheckinsModule } from '@/goal-checkins/goal-checkins.module';
     FilesModule,
     GoalMetricsModule,
     GoalCheckinsModule,
+    GoalStatusModule,
+    MilestonesModule,
+    TasksModule,
   ],
 })
 export class AppModule {}

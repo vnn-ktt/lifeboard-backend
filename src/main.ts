@@ -22,7 +22,7 @@ async function bootstrap(): Promise<void> {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Lifeboard REST API')
     .setDescription('Private session-based Lifeboard API. Authentication requires a lifeboard.sid cookie.')
-    .setVersion('0.6.1')
+    .setVersion('0.7.0')
     .addCookieAuth('lifeboard.sid', { type: 'apiKey', in: 'cookie', name: 'lifeboard.sid' }, 'lifeboard.sid')
     .build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig), {

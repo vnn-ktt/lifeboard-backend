@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import type { GoalStatus } from '@/goal-status/domain/goal-status';
 import type { GoalMeasurement, GoalCheckinFrequency } from '@/goals/domain/goal-measurement';
 
 export type GoalHorizon = 'month' | 'quarter' | 'year' | 'five-years';
@@ -53,6 +54,12 @@ export class LifeGoal {
   parentId!: string | null;
 
   /** 0,1,2 = ordered focus goals; unique for each user. */
+  @Column({ type: 'varchar', length: 12, default: 'active' })
+  status!: GoalStatus;
+
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt!: Date | null;
+
   @Column({ name: 'focus_position', type: 'smallint', nullable: true })
   focusPosition!: number | null;
 
