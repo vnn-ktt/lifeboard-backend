@@ -8,8 +8,8 @@
 
 ## Публичные сервисы и функции
 
-- `list(userId: string, goalId: string): Promise<GoalMetricEntry[]> (HTTP DTO)` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
-- `create(userId: string, goalId: string, input: CreateMetricEntryDto): Promise<GoalMetricEntry> (HTTP DTO)` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
+- `list(userId: string, goalId: string): Promise<ReturnType<typeof presentMetric>[]>` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
+- `create(userId: string, goalId: string, input: CreateMetricEntryDto): Promise<ReturnType<typeof presentMetric>>` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
 - `remove(userId: string, goalId: string, entryId: string): Promise<void>` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
 
 ## Модели и схемы данных, связи
