@@ -4,6 +4,7 @@ import { DataSource, In, type EntityManager } from 'typeorm';
 import { LifeArea } from '@/areas/entities/life-area.entity';
 import { User } from '@/users/entities/user.entity';
 import { LifeGoal } from '@/goals/entities/life-goal.entity';
+import type { GoalMeasurement } from '@/goals/domain/goal-measurement';
 import { GoalMetricEntry } from '@/goal-metrics/entities/goal-metric-entry.entity';
 import { GoalCheckin } from '@/goal-checkins/entities/goal-checkin.entity';
 import { GoalMilestone } from '@/milestones/entities/goal-milestone.entity';
@@ -181,14 +182,14 @@ export class DataTransferService {
     if(areaRows.length)await manager.getRepository(LifeArea).insert(areaRows);
     const defaultFromDate = localDateKey(timezone);
     const goalRows = s.goals.map(g=>{
-      const raw = g.measurement as (Measurement&{type?:string})|undefined;
-      const kind = raw?.kind ?? raw?.type ?? 'activity';
-      const measurement = kind==='numeric'
+      const raw = g.measurement;
+      const kind = raw?.kind ?? 'activity';
+      const measurement: GoalMeasurement = kind==='numeric'
         ? { type:'numeric' as const, direction:(raw as Extract<Measurement,{kind:'numeric'}>).direction,
           unit:(raw as Extract<Measurement,{kind:'numeric'}>).unit,
           startValue:(raw as Extract<Measurement,{kind:'numeric'}>).startValue,
           targetValue:(raw as Extract<Measurement,{kind:'numeric'}>).targetValue }
-        : { type:kind as 'binary'|'activity' };
+        : kind==='binary' ? { type:'binary' } : { type:'activity' };
       const frequency = kind==='activity'?null:(g.checkin?.frequency??'weekly');
       return {
         id:map.goals[g.id],userId,areaId:BUILTIN_AREA_IDS.has(g.areaId)?g.areaId:areaMap[g.areaId],
