@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from '@/app.module';
+import { ApiExceptionFilter } from '@/common/filters/api-exception.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
@@ -22,12 +23,13 @@ async function bootstrap(): Promise<void> {
     stopAtFirstError: true,
     validationError: { target: false, value: false },
   }));
+  app.useGlobalFilters(new ApiExceptionFilter());
   app.enableShutdownHooks();
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Lifeboard REST API')
     .setDescription('Private session-based Lifeboard API. Authentication requires a lifeboard.sid cookie.')
-    .setVersion('0.9.0')
+    .setVersion('1.0.0')
     .addCookieAuth('lifeboard.sid', { type: 'apiKey', in: 'cookie', name: 'lifeboard.sid' }, 'lifeboard.sid')
     .build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig), {
@@ -45,7 +47,7 @@ async function bootstrap(): Promise<void> {
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
       const origin = request.headers.origin;
       if ((origin && origin !== webOrigin) || (!origin && request.headers['sec-fetch-site'] === 'cross-site')) {
-        response.status(403).json({ statusCode: 403, message: 'Forbidden origin' });
+        response.status(403).json({ statusCode: 403, code: 'FORBIDDEN_ORIGIN', message: 'Forbidden origin' });
         return;
       }
     }

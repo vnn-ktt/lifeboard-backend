@@ -1,278 +1,345 @@
-# Lifeboard Backend v0.9.0 — Modular Monolith
+# Lifeboard Backend 1.0.0
 
-NestJS 11 · PostgreSQL 17 · TypeORM · Bun · Node.js 24 runtime · AWS SDK v3 · S3-compatible storage. Existing frontend remains unchanged.
+NestJS 11 · Node.js 24 · PostgreSQL 17 · TypeORM 0.3 · Bun · S3-compatible private Bucket.
 
-## What's new
+## Overview
 
-- `StorageModule`: provider-neutral `StorageService` backed by `S3StorageProvider` (`@aws-sdk/client-s3`).
-- `FilesModule`: upload, private download, metadata and deletion of JPEG / PNG / WebP images (up to **5 MiB**).
-- PostgreSQL migration `1794109200000-CreateFiles.ts`: file metadata and user ownership; **no file bytes** in PostgreSQL.
-- Development-only `compose.storage.dev.yaml`: SeaweedFS in Docker with persistent data and pre-created private S3 bucket.
-- Production: Yandex Object Storage, using the **same** S3 provider and REST API with different environment variables.
-- `bun run files:cleanup`: retries deletion of orphaned objects after an interrupted cleanup (soft-deletion tombstones).
-- Postman collection and tests. No changes to existing migrations, endpoints or frontend.
+REST backend приложения Lifeboard для хранения целей, измерений, check-ins, действий, этапов, разовых задач, рефлексий, заметок, изображений и настроек. Пользователи изолированы серверными сессиями и SQL-связями.
 
-## Module structure
+## Scope / Out of scope
+
+**Входит:** описанные REST-модули, session-auth, PostgreSQL, S3, импорт/экспорт LifeState v1, миграции, health-checks, release-проверки и документация. **AI/ML не входит в релиз 1.0.0:** реализации или нового API для этого функционала нет. Также вне текущего объёма: push-уведомления, распределённые очереди и микросервисы.
+
+## Архитектура
 
 ```text
-src/
-├── files/
-│   ├── domain/image-rules.ts
-│   ├── dto/file-response.dto.ts
-│   ├── entities/stored-file.entity.ts
-│   ├── files.controller.ts
-│   ├── files.module.ts
-│   └── files.service.ts
-├── storage/
-│   ├── interfaces/object-storage.interface.ts
-│   ├── providers/s3-storage.provider.ts
-│   ├── storage.module.ts
-│   └── storage.service.ts
-└── cli/cleanup-files.ts
+Vue browser (credentials: include)
+           │ HTTPS
+           ▼
+  reverse proxy (/api/v1)
+           │
+           ▼
+NestJS Controllers + DTO + Auth Guard
+           │
+           ▼
+Domain / Services / UserWriteLock
+           ├──── TypeORM ────── PostgreSQL 17
+           └──── StorageService ─ Private S3 Bucket
 ```
 
-The root of each feature module contains only its controller/service/module, and StorageModule intentionally has **no controller**. Imports are `@/` aliases. `FilesModule` does not call AWS SDK directly.
+Слои: `controller` реализует HTTP, `dto` валидирует данные через глобальный `ValidationPipe`, `service` проверяет владельца и бизнес-ограничения, `domain` содержит чистые правила, `entity/migration` фиксируют SQL-схему. Фактический прогресс результата и выполнение действий не смешиваются.
 
-## Develop locally (Bun on host, SeaweedFS and PostgreSQL in Docker)
+## Модули
 
-1. Read `UPGRADE.md`, back up PostgreSQL, and add the new `S3_*` variables from `.env.example` to your existing `.env` (do **not** replace DB credentials).
-2. Start DB and S3 emulator:
+- [`app`](docs/modules/app.md)
+- [`areas`](docs/modules/areas.md)
+- [`auth`](docs/modules/auth.md)
+- [`common-user-write-lock`](docs/modules/common-user-write-lock.md)
+- [`data-transfer`](docs/modules/data-transfer.md)
+- [`files`](docs/modules/files.md)
+- [`goal-checkins`](docs/modules/goal-checkins.md)
+- [`goal-metrics`](docs/modules/goal-metrics.md)
+- [`goal-status`](docs/modules/goal-status.md)
+- [`goals`](docs/modules/goals.md)
+- [`health`](docs/modules/health.md)
+- [`life`](docs/modules/life.md)
+- [`milestones`](docs/modules/milestones.md)
+- [`note-groups`](docs/modules/note-groups.md)
+- [`notes`](docs/modules/notes.md)
+- [`preferences`](docs/modules/preferences.md)
+- [`progress`](docs/modules/progress.md)
+- [`quotes`](docs/modules/quotes.md)
+- [`reviews`](docs/modules/reviews.md)
+- [`routines`](docs/modules/routines.md)
+- [`storage`](docs/modules/storage.md)
+- [`tasks`](docs/modules/tasks.md)
+- [`users`](docs/modules/users.md)
+- [`config`](docs/modules/config.md)
+- [`database`](docs/modules/database.md)
+
+Все файлы `docs/modules/*` содержат назначение, сигнатуры, модели, связи, зависимости, ENV, ошибки и пример использования.
+
+## Требования
+
+Node.js **24.x** (`>=24 <25`), PostgreSQL **17**, Bun (менеджер пакетов), приватный S3-compatible bucket. Docker Engine + Compose нужны для контейнерной конфигурации. Прямые зависимости и devDependencies имеют фиксированные версии в `package.json`, разрешённые транзитивные версии — в `bun.lock`.
+
+## Установка и локальный запуск
 
 ```bash
+git clone https://github.com/vnn-ktt/lifeboard-backend.git
+cd lifeboard-backend
+cp .env.example .env
+# настроить DB_USER, DB_PASSWORD и WEB_ORIGIN
 docker compose -f compose.yaml -f compose.storage.dev.yaml up -d db storage
-```
-
-3. Run backend:
-
-```bash
-bun install
-bun run typecheck
-bun run test
-bun run build
+bun install --frozen-lockfile
 bun run db:migrate
 bun run start:dev
 ```
 
-S3 dev endpoint: `http://127.0.0.1:8333`. The `storage` container creates bucket `lifeboard-dev` and local access keys automatically; the bucket and objects survive container restarts in the `seaweedfs_data` volume. Do not publish this service to the internet.
+Базовый URL: `http://localhost:3000/api/v1`. Запуск `api` через Compose: `docker compose -f compose.yaml -f compose.storage.dev.yaml up -d --build`. Для тестового облачного S3 допускается не запускать локальный `storage`, задав `S3_*` в `.env`.
 
-For **all-in-Docker development**, use:
+## Конфигурация ENV
 
-```bash
-docker compose -f compose.yaml -f compose.storage.dev.yaml up -d --build
-```
+| Имя | Назначение | Обязательно | Дефолт | Пример |
+|---|---|---|---|---|
+| `NODE_ENV` | Окружение | Нет | development | `production` |
+| `PORT` | HTTP-порт | Нет | 3000 | `3000` |
+| `DB_HOST` | PostgreSQL hostname | Да | — | `127.0.0.1` |
+| `DB_PORT` | PostgreSQL port | Нет | 5432 | `5432` |
+| `DB_USER` | Пользователь БД | Да | — | `lifeboard` |
+| `DB_PASSWORD` | Пароль БД | Да | — | `(секрет)` |
+| `DB_NAME` | Имя БД | Да | — | `lifeboard` |
+| `DB_POOL_SIZE` | Размер пула | Нет | 10 | `10` |
+| `DB_SSL` | TLS к PostgreSQL | Нет | false | `true` |
+| `WEB_ORIGIN` | Точный origin frontend | Рекомендуется явно | http://localhost:8080 | `https://app.example.com` |
+| `COOKIE_SECURE` | Secure cookie | Нет | true в production; false вне production | `true` |
+| `S3_ENDPOINT` | S3 API endpoint | Да в production | http://127.0.0.1:8333 вне production | `https://storage.yandexcloud.net` |
+| `S3_REGION` | Регион S3 | Нет | ru-central1 | `ru-central1` |
+| `S3_BUCKET` | Приватный S3 bucket | Да в production | lifeboard-dev вне production | `lifeboard-prod` |
+| `S3_ACCESS_KEY_ID` | S3 access key | Да в production | lifeboard-dev вне production | `(секрет)` |
+| `S3_SECRET_ACCESS_KEY` | S3 secret | Да в production | lifeboard-local-secret вне production | `(секрет)` |
+| `S3_FORCE_PATH_STYLE` | Path-style addressing | Нет | true | `true` |
+| `DB_EXPOSE_PORT` | Порт БД для Docker Compose | Нет, Compose | 5432 | `5433` |
+| `TEST_DB_NAME` | Отдельная БД интеграционных тестов | Да, integration | — | `lifeboard_test` |
 
-The overlay sets `S3_ENDPOINT=http://storage:8333` for the API; inside Docker `127.0.0.1` would refer to the API container, not SeaweedFS. In production, **do not include the overlay**.
+Примечания: `DB_EXPOSE_PORT` читает только Compose; `TEST_DB_NAME` — тесты. В production `WEB_ORIGIN` нужно задавать **явно**, `COOKIE_SECURE=true`, а `S3_ENDPOINT` обязан использовать HTTPS. Не используйте дефолтные локальные ключи на публичном окружении.
 
-If PostgreSQL is already running in Docker, preserve its volume. Never run `docker compose down -v` during an upgrade.
+## Миграции БД и сиды
 
-## Production: Yandex Object Storage
+`src/database/migrations` содержит последовательные миграции. В TypeORM установлено `synchronize: false`, `migrationsRun: false`. Выполнить: `bun run db:migrate`; откатить последнюю с возможной потерей данных: `bun run db:revert`; в контейнере: `bun run db:migrate:prod` (Compose запускает мигратор отдельным сервисом). Системные области и системный каталог цитат загружаются миграциями; отдельного обязательного seed-скрипта нет. Перед production-миграцией нужен проверенный бэкап PostgreSQL.
 
-1. In Yandex Cloud create a **private** Object Storage bucket (public access disabled). Create a service account with narrowly scoped rights to read/write/delete objects in that bucket and generate a **static access key** for it. See official Yandex docs: https://yandex.cloud/ru/docs/storage/tools/aws-sdk-js and https://yandex.cloud/ru/docs/storage/s3/s3-api-quickstart .
-2. Configure production `.env` or secret manager (never commit secrets):
-
-```dotenv
-NODE_ENV=production
-S3_ENDPOINT=https://storage.yandexcloud.net
-S3_REGION=ru-central1
-S3_BUCKET=<your-private-bucket-name>
-S3_ACCESS_KEY_ID=<service-account-static-access-key-id>
-S3_SECRET_ACCESS_KEY=<service-account-static-secret>
-S3_FORCE_PATH_STYLE=true
-COOKIE_SECURE=true
-```
-
-3. Start with base `compose.yaml` only, behind HTTPS reverse proxy (set `WEB_ORIGIN` to frontend origin). The bucket must exist before uploading; the application never creates buckets or sets public ACLs.
-4. Use encrypted secrets storage, bucket versioning / retention policy as appropriate, S3 access logs, and PostgreSQL backups. **File backups and DB backups must be coordinated** since DB stores keys rather than data. Never copy local development S3 credentials to production.
-
-`S3_ENDPOINT` is validated on startup; production requires HTTPS. The region and URL follow Yandex's official SDK examples.
-
-## REST API
-
-All routes below use prefix `/api/v1` and require the existing **HttpOnly session cookie**. The `userId` is derived from the server-side session and cannot be supplied by clients.
-
-| Method | Endpoint | Result |
-|---|---|---|
-| `POST` | `/files` | `201` uploads one `multipart/form-data` part named **`file`** |
-| `GET` | `/files/:id` | `200` metadata or `404` |
-| `GET` | `/files/:id/content` | `200` image stream (`Cache-Control: private, no-store`) |
-| `DELETE` | `/files/:id` | `204`, then metadata/content return `404` |
-
-Upload accepts JPEG, PNG and WebP, up to 5 MiB; validates the binary signature rather than trusting `Content-Type` or the extension. Executable/SVG/GIF are rejected. Max one file and no other form fields. Upload requires the `file` field; `application/json` is not accepted.
-
-Example `201` JSON:
-
-```json
-{
-  "id": "fc0d58b0-5c86-44e5-a6f4-035d3bd8f0d3",
-  "originalName": "landscape.png",
-  "mimeType": "image/png",
-  "size": 154239,
-  "createdAt": "2026-11-05T12:00:00.000Z"
-}
-```
-
-Storage keys, S3 credentials, bucket and internal URLs are **not** exposed. If the file is not owned by the signed-in user, return `404` instead of revealing its existence. Uploaded objects have random UUID keys. Content is delivered by the API; no public bucket or presigned URL is issued.
-
-### Test in Postman
-
-Import `postman/Lifeboard-v0.6.0.postman_collection.json` and use its Auth → Login first; Postman retains session cookies for `localhost`. In Files (S3), choose an actual image in request **01 Upload image** → Body → form-data → `file` (type File). Send; the test script saves `fileId`. Run metadata, download, delete and finally `404` checks. Test a different session, invalid image and files over 5 MiB.
-
-Or test using curl after logging in:
+## Тесты, E2E и покрытие
 
 ```bash
-curl -i -c cookies.txt -H 'Content-Type: application/json' \
-  -d '{"email":"ivan@example.com","password":"YOUR_PASSWORD"}' \
-  http://localhost:3000/api/v1/auth/login
-curl -i -b cookies.txt -F 'file=@./photo.png' http://localhost:3000/api/v1/files
-curl -b cookies.txt http://localhost:3000/api/v1/files/FILE_ID/content --output downloaded.png
-curl -i -b cookies.txt -X DELETE http://localhost:3000/api/v1/files/FILE_ID
-```
-
-## Deletion consistency and maintenance
-
-Deletion first soft-deletes metadata so the user immediately loses access, then requests S3 delete, then hard-deletes metadata. If storage is down, a soft-deleted record remains for retry. Run `bun run files:cleanup` after restoring S3 connectivity (or in production: `node dist/cli/cleanup-files.js`). This is a **manual maintenance command**, not a scheduled worker. A PostgreSQL failure after a successful S3 upload triggers a best-effort compensating S3 delete; administrators should still monitor for orphans after infrastructure outages.
-
-**v0.6.0 handles files independently.** It does not yet attach `fileId` to Notes or Users avatars. Linking will be implemented in Notes/Profile modules. Future work: full image decoders/transcoding, malware scanning, quotas, content hashing, rate limits tailored for uploads and integration tests against real S3/PostgreSQL; this release uses signature checks and bounded in-memory uploads only.
-
-## Verification
-
-The source and Postman collection are included. Run `bun install && bun run typecheck && bun run test && bun run build && bun run db:migrate` locally before deployment; the distributed archive intentionally does not contain generated `bun.lock` or `node_modules`. Commit the locally generated `bun.lock` and keep it frozen in Docker. Live S3 uploads and PostgreSQL migration need your local runtime to validate end to end.
-
----
-
-# Goal Metrics + Weekly Check-ins — Backend v0.6.1 (2026-11-06)
-
-This release is an **additive change to the existing NestJS modular monolith** (v0.6.0). It does not modify the Vue frontend, rewrite Auth/Users/Goals, or drop existing data. The Swagger dependency (`@nestjs/swagger`) is new. Use **Bun** to install and run scripts.
-
-## Schema and module boundaries
-
-- `goals/`: existing `LifeGoal`, now with `measurement` (`activity`, `binary`, `numeric`), optional `startDate` / `dueDate`, and check-in schedule mapped to typed columns (`checkin_frequency`, `checkin_weekday`, `checkin_from_date`). `target` **still means planned routine completions**.
-- `goal-metrics/`: dated result measurements in `goal_metric_entries`. Latest measurement by `(date, createdAt, id)` determines numeric/binary outcome; deletions are supported.
-- `goal-checkins/`: completed facts in `goal_checkins`, and `CheckinScheduleService` for on-demand due-date calculation. `unchanged` and `skipped` never insert a metric.
-- `users/`: IANA `timezone`, defaults to **UTC** (never depends on host machine time zone).
-- `progress/`: existing routine progress retained in `activity`; main `percent` and `outcome` now use the result measurement where applicable.
-
-Ownership is enforced by both services (`userId` from HttpOnly session) and composite PostgreSQL foreign keys. `UNIQUE(goal_id, due_date)` prevents duplicate completed check-ins. FK from a completed check-in to an individual metric is nullable and `ON DELETE SET NULL (metric_entry_id)`; deleting the metric retains the check-in history. Deleting a goal cascades both histories.
-
-The migration `1794282000000-CreateGoalMetricsAndCheckins.ts` does not delete old goals. Goals without a measurement become `activity`. If the DB already contains measured goals without a schedule, their schedule is initialized from **migration day in the user's timezone**, weekly/Sunday, without historical overdue dates. The migration expects **PostgreSQL 17+**, as does the older composite `ON DELETE SET NULL` migration.
-
-## REST contract (all endpoints under `/api/v1`, authenticated)
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET/POST | `/goals/:goalId/metrics` | List/add dated manual measurements |
-| DELETE | `/goals/:goalId/metrics/:entryId` | Remove a measurement; check-in remains |
-| GET | `/goal-checkins/due` | Earliest pending per goal, with additional `pendingCount` |
-| GET | `/goals/:goalId/checkins` | Completed history |
-| POST | `/goals/:goalId/checkins` | Close the **earliest** pending scheduled date |
-| PATCH | `/users/me/timezone` | Change IANA timezone `{ "timezone": "Europe/Amsterdam" }` |
-| GET | `/goals/:goalId/progress` | Outcome as well as existing routine progress |
-| POST/PATCH | `/goals`, `/goals/:goalId` | Extended with `measurement`, `startDate`, `dueDate`, `checkin` |
-
-The new measurement field in goal create/update takes one of:
-
-```json
-{"type":"activity"}
-{"type":"binary"}
-{"type":"numeric","direction":"increase","unit":"USD","startValue":20000,"targetValue":100000}
-```
-
-New numeric/binary goals default to `{ "frequency":"weekly", "weekday":7, "fromDate":"<today in user timezone>" }`. Pass `checkin` explicitly to choose `daily`, `weekly`, `manual`, or `off` (including `fromDate`). On frequency/weekday changes the activation resets to **today** (or a later supplied date); past completed rows are retained. A weekly completion covers the whole **ISO week**, including if the chosen weekday changes, so one week is not double-counted. No future scheduled rows are written to the database.
-
-Examples:
-
-```http
-POST /api/v1/goals/{goalId}/checkins
-Content-Type: application/json
-
-{"dueDate":"2026-11-08","status":"updated","value":35000,"note":"Deposit"}
-```
-
-```http
-POST /api/v1/goals/{goalId}/checkins
-Content-Type: application/json
-
-{"dueDate":"2026-11-08","status":"unchanged"}
-```
-
-```http
-POST /api/v1/goals/{goalId}/checkins
-Content-Type: application/json
-
-{"dueDate":"2026-11-08","status":"skipped"}
-```
-
-`updated` writes both a measurement (dated **actual local completion date**, not scheduled due date) and a check-in in one transaction. Numeric updated requires `value`; binary updated always records `1` (value may be omitted). The `note` is limited to 300 characters. Other statuses are check-in-only. The same exact request is idempotent; a conflicting retry returns `409`.
-
-`GET /goal-checkins/due` returns items like:
-
-```json
-[{"goalId":"<uuid>","dueDate":"2026-11-08","overdue":false,"pendingCount":2,
-  "outcome":{"type":"numeric","percent":18.75,"completed":false,"currentValue":35000,
-    "startValue":20000,"targetValue":100000,"unit":"USD","direction":"increase"}}]
-```
-
-`pendingCount` counts **additional pending dates** beyond the one in `dueDate`. When the latest result is 100%, the endpoint returns no pending reminder for that goal until the result changes. Historical check-ins are still readable.
-
-## Migrations, build, testing
-
-```bash
-bun install
+bun run lint
 bun run typecheck
 bun run test
-bun run build
-bun run db:migrate
-bun run start:dev
-```
-
-Inspect `bun.lock` before committing and never overwrite `.env` or the PostgreSQL volume. For a real PostgreSQL integration test, provision a **separate** database ending `_test` with the same Postgres user credentials and run:
-
-```bash
-# Example: create one-time dedicated test DB, not the application DB
-# docker compose exec db psql -U lifeboard -d postgres -c 'CREATE DATABASE lifeboard_test;'
+bun run test:coverage
 TEST_DB_NAME=lifeboard_test bun run test:integration
+DB_NAME=lifeboard_test bun run test:e2e
+bun run build
 ```
 
-The integration test runs migrations in the dedicated test database and checks atomic rollback, ownership, uniqueness, FK `SET NULL`, and cascade deletion. Do **not** point `TEST_DB_NAME` at a database holding application data. HTTP session/auth tests still need a full deployment environment.
+Unit — `node:test`; integration — отдельная PostgreSQL 17 с миграциями; E2E — HTTP smoke (health, 401, validation, регистрация и cookie-auth). Отчёт V8 coverage запускается `test:coverage`, числовой порог **не установлен**; не заявляем неподтверждённое покрытие. База `lifeboard_test` создаётся вручную либо шагом GitHub Actions. Настоящий S3 проверяется отдельным staging smoke.
 
-OpenAPI UI: `GET /api/docs`; JSON specification: `GET /api/docs-json`. Postman collection: `postman/Lifeboard-Goal-Checkins-v0.6.1.postman_collection.json`. Swagger UI is documentation; for cookie-authenticated unsafe requests the origin restriction configured in `main.ts` may block “Try it out” from the backend origin. Postman uses the normal session cookie without a browser Origin header.
+## Линтеры / форматтеры / CI
 
-### Upgrade caveats
+`bun run lint` использует `scripts/check-repository.mjs`: запрещённые debug-паттерны, документация каждого модуля, совпадение API Reference с контроллерами. **ESLint и Prettier в текущем проекте не установлены** — наличие автоформатирования не заявляется; исходники пишутся в UTF-8/LF, TypeScript strict. CI `.github/workflows/backend-ci.yml`: Bun frozen install, lint, typecheck, unit, build, интеграционные тесты PostgreSQL, E2E, coverage и проверка lockfile.
 
-- The frontend v0.15.1 source archive was not present in the available files during this backend update; the frontend's v0.15.1 README and the supplied API/data-model specification were used. Check the exact discriminated `GoalMeasurement` TypeScript shape against `types.ts` before connecting the frontend.
-- The code and isolated calendar tests were checked without installing new npm packages; complete compilation, test suite, PostgreSQL migration, and live HTTP contract must be validated locally using Bun.
-- Existing JSON backups need a separate import pipeline; this change does **not** automatically import browser `localStorage` into PostgreSQL.
+## Docker / docker-compose
 
+`Dockerfile` использует Node.js 24, установку зависимостей Bun и непривилегированного пользователя при runtime. `compose.yaml`: db, migrate, api, healthchecks, локальный проброс DB и API через 127.0.0.1. `compose.storage.dev.yaml` — dev-only S3-compatible storage; не используйте его credentials в production. TLS/reverse proxy **не включены** в Compose и должны настраиваться отдельно.
 
-## v0.7.0 — Goals Execution (frontend v0.17.1 contract)
+## Деплой и окружения dev/staging/prod
 
-- Modules: `milestones`, `tasks`, `goal-status`; goal status and completion metadata added to existing `life_goals`.
-- Atomic and idempotent status events; milestone and task CRUD/completion; Today `/tasks/due` API.
-- `measurement.kind` requests accepted alongside legacy `measurement.type` with normalized storage.
-- Detailed REST contract and migration/testing guidance: [`docs/GOALS-EXECUTION-v0.7.0.md`](docs/GOALS-EXECUTION-v0.7.0.md).
-- Postman: `postman/Lifeboard-v0.7.0-goals-execution.postman_collection.json`.
-- New migration: `1794368400000-CreateGoalExecution.ts` (additive; old goals remain `active`, no synthetic events).
+**Dev:** `NODE_ENV=development`, локальная PostgreSQL и тестовый bucket, HTTP cookie допускается только локально. **Staging:** `NODE_ENV=production` с отдельными DB/bucket, HTTPS, `WEB_ORIGIN` staging, проверкой миграций и real-S3 upload/export. **Prod:** `NODE_ENV=production`, `COOKIE_SECURE=true`, TLS до S3, приватный bucket, секреты из защищённого хранилища, backup перед запуском миграций. Rollback данных — из резервной копии; не рассчитывайте на безусловный безопасный `db:revert`.
 
-This release does not automatically connect frontend localStorage, and the existing frontend is not modified.
+## Логирование и мониторинг
 
-## v0.8.0 — Notes, Quotes, Profile & Preferences
+Используется `Logger` NestJS, непредвиденные ошибки логируются сервером и не раскрывают stack trace через API. Публичные health endpoints: `/api/v1/health/live` (не зависит от БД) и `/api/v1/health/ready` (запрос к PostgreSQL). Систему метрик или распределённой трассировки backend не реализует; внешний мониторинг должен проверять readiness и собирать логи контейнеров. Отказы S3 проверяются отдельно.
 
-The v0.8.0 backend adds authenticated CRUD for `notes` and `note-groups`, a read-only RU/EN/DE system quote catalog with per-user dashboard/review assignments, profile editing and avatars, and per-user UI preferences. Existing `POST /api/v1/files` uploads images to S3; notes and avatars store UUID file references, not Base64.
+## Безопасность
 
-- Notes: `GET/POST /api/v1/notes`, `GET/PATCH/DELETE /api/v1/notes/:id`; optional GET filters `groupId`, `goalId`, `pinned`.
-- Note groups: `GET/POST /api/v1/note-groups`, `PATCH/DELETE /api/v1/note-groups/:id`.
-- Quotes: `GET /api/v1/quotes`, `GET/PUT /api/v1/quotes/assignments` (`dashboard`, `review`).
-- Profile: `GET/PATCH /api/v1/users/me`, `PUT /api/v1/users/me/avatar` with `{fileId}` (upload first via `/files`).
-- Preferences: `GET/PUT /api/v1/users/me/preferences` with `theme`, `language`, `goalEntryMode`, `showHelper`, `privacy.showAvatar`, `privacy.maskStats`.
+`lifeboard.sid`: HttpOnly, SameSite=Lax, Secure при HTTPS, Path=/api/v1, срок 7 дней. В БД сохраняется SHA-256 токена сессии, не raw-cookie. `SessionAuthGuard` глобальный, только health, login и register доступны без сессии. CORS с credentials разрешён только `WEB_ORIGIN`; unsafe requests проверяются по Origin (защита для cookie). Throttler: базовый лимит 120 запросов/мин, дополнительные ограничения на login/register, файлы, импорт/экспорт. Секреты не должны попадать в frontend `VITE_*`. Ответ об ошибке имеет `{statusCode,code,message}`, ошибки SQL/stack не возвращаются клиенту.
 
-See [v0.8.0 API and migration guide](docs/CONTENT-ACCOUNT-v0.8.0.md) and [Postman collection](postman/Lifeboard-v0.8.0-content-account.postman_collection.json). This release **does not** migrate browser localStorage; v0.9.0 will handle legacy IDs, data URLs and backups with explicit user approval.
+## Версионирование API
 
-## v0.9.0 — Import / Export & Data Integrity
+Реальный глобальный префикс NestJS: `/api/v1`, релиз приложения 1.0.0 не переименовывает маршруты. Swagger UI: `/api/docs`, OpenAPI JSON: `/api/docs-json`. Обновления несовместимого API должны выпускаться отдельно.
 
-The session-authenticated backend can now validate, import once, and export full Lifeboard v1 snapshots from frontend v0.17.1. This migration preserves the goal tree, dated metrics and check-ins, milestones and tasks, status timeline, routines/checks, reviews, notes, inlined note images (moved to private S3), system quote assignments and archived custom quotes.
+## API Reference
 
-Endpoints under `/api/v1`: `POST /imports/lifeboard-v1/validate` (dry-run), `POST /imports/lifeboard-v1` (requires `X-Import-Confirmed: true`), and `GET /exports/lifeboard-v1` (full JSON). Import into nonempty personal workspaces is prohibited; duplicate imports are identified by user-scoped SHA-256 receipts and return the original ID map without re-creating records. `Idempotency-Key` header is supported.
+Перечислены **все маршруты из контроллеров** с реальным `/api/v1`. `Auth: Да` означает действующую session-cookie, `Нет` — публичный Health. Общие ответы `400` (DTO), `401` (нет сессии), `429` (rate limit) могут применяться к защищённым endpoint дополнительно к указанным в таблице.
 
-See **[docs/DATA-TRANSFER-v0.9.0.md](docs/DATA-TRANSFER-v0.9.0.md)** for security assumptions, migration semantics, current limits and Postman examples. The frontend is still local-first and must explicitly switch to API-backed state in a later release.
+### Health
 
-Automated checks are configured in `.github/workflows/backend-ci.yml`; the PostgreSQL integration files execute serially to avoid concurrent migrations against the same test DB.
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/health/live` | Health | Нет | Liveness | 200 |
+| GET | `/api/v1/health/ready` | Health | Нет | Readiness | undefined |
+
+### Auth
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| POST | `/api/v1/auth/register` | Auth | Да | Регистрация | 201,400,409,429 |
+| POST | `/api/v1/auth/login` | Auth | Да | Вход | undefined |
+| POST | `/api/v1/auth/logout` | Auth | Да | Завершение | undefined |
+
+### Users
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/users/me` | Users | Да | Профиль | 200,401 |
+| PATCH | `/api/v1/users/me` | Users | Да | Редактирование | undefined |
+| PUT | `/api/v1/users/me/avatar` | Users | Да | Установка | undefined |
+| PATCH | `/api/v1/users/me/timezone` | Users | Да | Смена | undefined |
+
+### Preferences
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/users/me/preferences` | Preferences | Да | Настройки | 200,401 |
+| PUT | `/api/v1/users/me/preferences` | Preferences | Да | Изменение | undefined |
+
+### Areas
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/areas` | Areas | Да | Области | 200,401 |
+| POST | `/api/v1/areas` | Areas | Да | Новая | undefined |
+| DELETE | `/api/v1/areas/:id` | Areas | Да | Удалить | undefined |
+
+### Goals
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/goals` | Goals | Да | Список | undefined |
+| GET | `/api/v1/goals/focus` | Goals | Да | Фокус | 200,401 |
+| PUT | `/api/v1/goals/focus` | Goals | Да | Изменить | undefined |
+| GET | `/api/v1/goals/:id` | Goals | Да | Получить | undefined |
+| POST | `/api/v1/goals` | Goals | Да | Создать | undefined |
+| PATCH | `/api/v1/goals/:id` | Goals | Да | Редактировать | undefined |
+| DELETE | `/api/v1/goals/:id` | Goals | Да | Удалить | undefined |
+
+### Goal Status
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| PATCH | `/api/v1/goals/:goalId/status` | Goal Status | Да | Изменить | undefined |
+| GET | `/api/v1/goals/:goalId/status-events` | Goal Status | Да | История | undefined |
+
+### Milestones
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/goals/:goalId/milestones` | Milestones | Да | Список | undefined |
+| POST | `/api/v1/goals/:goalId/milestones` | Milestones | Да | Создать | undefined |
+| PATCH | `/api/v1/goals/:goalId/milestones/:milestoneId` | Milestones | Да | Редактировать | undefined |
+| PUT | `/api/v1/goals/:goalId/milestones/:milestoneId/completion` | Milestones | Да | Завершить/возобновить | 200,400,401,404 |
+| DELETE | `/api/v1/goals/:goalId/milestones/:milestoneId` | Milestones | Да | Удалить | undefined |
+
+### Tasks
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/goals/:goalId/tasks` | Tasks | Да | Задачи | undefined |
+| POST | `/api/v1/goals/:goalId/tasks` | Tasks | Да | Создать | undefined |
+| PATCH | `/api/v1/goals/:goalId/tasks/:taskId` | Tasks | Да | Обновить | undefined |
+| PUT | `/api/v1/goals/:goalId/tasks/:taskId/completion` | Tasks | Да | Завершить/возобновить | 200,400,401,404 |
+| DELETE | `/api/v1/goals/:goalId/tasks/:taskId` | Tasks | Да | Удалить | undefined |
+| GET | `/api/v1/tasks/due` | Tasks | Да | Today: | undefined |
+
+### Goal Metrics
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/goals/:goalId/metrics` | Goal Metrics | Да | Список | undefined |
+| POST | `/api/v1/goals/:goalId/metrics` | Goal Metrics | Да | Добавить | undefined |
+| DELETE | `/api/v1/goals/:goalId/metrics/:entryId` | Goal Metrics | Да | Удалить | undefined |
+
+### Goal Check-ins
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/goal-checkins/due` | Goal Check-ins | Да | Очередь | undefined |
+| GET | `/api/v1/goals/:goalId/checkins` | Goal Check-ins | Да | История | undefined |
+| POST | `/api/v1/goals/:goalId/checkins` | Goal Check-ins | Да | Завершить | undefined |
+
+### Routines
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/routines` | Routines | Да | Повторяющиеся | undefined |
+| POST | `/api/v1/routines` | Routines | Да | Создать | undefined |
+| GET | `/api/v1/routines/day` | Routines | Да | Действия | undefined |
+| GET | `/api/v1/routines/checks` | Routines | Да | Проверки | undefined |
+| GET | `/api/v1/routines/:id` | Routines | Да | Получить | undefined |
+| PATCH | `/api/v1/routines/:id` | Routines | Да | Редактировать | undefined |
+| DELETE | `/api/v1/routines/:id` | Routines | Да | Удалить | undefined |
+| PUT | `/api/v1/routines/:id/checks/:date` | Routines | Да | Отметить | undefined |
+
+### Progress
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/goals/:id/progress` | Progress | Да | Прогресс | undefined |
+| GET | `/api/v1/progress/week` | Progress | Да | Недельный | undefined |
+
+### Reviews
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/reviews` | Reviews | Да | Список | undefined |
+| GET | `/api/v1/reviews/:date` | Reviews | Да | Рефлексия | undefined |
+| PUT | `/api/v1/reviews/:date` | Reviews | Да | Сохранить | undefined |
+| DELETE | `/api/v1/reviews/:date` | Reviews | Да | Удалить | undefined |
+
+### Life
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/life/vision` | Life | Да | Читать | undefined |
+| PUT | `/api/v1/life/vision` | Life | Да | Изменить | undefined |
+
+### Notes
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/notes` | Notes | Да | Список | undefined |
+| GET | `/api/v1/notes/:id` | Notes | Да | Получить | undefined |
+| POST | `/api/v1/notes` | Notes | Да | Создать | undefined |
+| PATCH | `/api/v1/notes/:id` | Notes | Да | Изменить | undefined |
+| DELETE | `/api/v1/notes/:id` | Notes | Да | Удалить | undefined |
+
+### Note Groups
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/note-groups` | Note Groups | Да | Группы | undefined |
+| POST | `/api/v1/note-groups` | Note Groups | Да | Создать | undefined |
+| PATCH | `/api/v1/note-groups/:id` | Note Groups | Да | Изменить | undefined |
+| DELETE | `/api/v1/note-groups/:id` | Note Groups | Да | Удалить | undefined |
+
+### Quotes
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/v1/quotes` | Quotes | Да | Системные | undefined |
+| GET | `/api/v1/quotes/assignments` | Quotes | Да | Назначения | undefined |
+| PUT | `/api/v1/quotes/assignments` | Quotes | Да | Обновить | undefined |
+
+### Files
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| POST | `/api/v1/files` | Files | Да | Загрузка | undefined |
+| GET | `/api/v1/files/:id` | Files | Да | Метаданные | 200,400,401,404 |
+| GET | `/api/v1/files/:id/content` | Files | Да | Содержимое | undefined |
+| DELETE | `/api/v1/files/:id` | Files | Да | Удалить | undefined |
+
+### Data Transfer
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| POST | `/api/v1/imports/lifeboard-v1/validate` | Data Transfer | Да | Dry-run | undefined |
+| POST | `/api/v1/imports/lifeboard-v1` | Data Transfer | Да | Подтверждённый | undefined |
+| GET | `/api/v1/exports/lifeboard-v1` | Data Transfer | Да | Экспорт | undefined |
+
+### Swagger (служебные маршруты)
+
+| Method | Path | Модуль | Auth | Краткое описание | Коды ответов |
+|---|---|---|---|---|---|
+| GET | `/api/docs` | Swagger | Нет отдельного guard | Swagger UI | 200 |
+| GET | `/api/docs-json` | Swagger | Нет отдельного guard | OpenAPI JSON | 200 |
+
+## Troubleshooting / FAQ
+
+**PostgreSQL не доступен:** проверьте DB_HOST (внутри Compose `db`, на host `127.0.0.1`), пароль, `/health/ready`. **401:** `credentials: 'include'`, cookie Path/Secure/SameSite. **403:** Origin должен совпадать с WEB_ORIGIN. **Ошибки S3:** endpoint, bucket, ACL приватных объектов и credentials. **Сбой миграций:** проверьте `typeorm_migrations`, не используйте `synchronize`. **Импорт 409:** аккаунт не пуст или конфликтует ключ идемпотентности; существующие данные не перезаписываются. **Импорт 428:** нужен заголовок `X-Import-Confirmed: true`. **Lockfile:** не запускайте production-сборку без `bun install --frozen-lockfile`.
+
+## Contributing
+
+Работайте через feature-ветки и PR; перед PR запустите lint, typecheck, unit, build, integration. Любой новый контроллерный маршрут вносится в API Reference; каждому модулю `src/**/*.module.ts` соответствует `docs/modules/*.md`. Меняйте БД только новой миграцией, не переписывайте уже применённую. DTO и frontend-контракт согласовывайте до изменения API.
+
+## License
+
+`package.json` содержит `UNLICENSED`, разрешающего файла LICENSE в репозитории нет. Публичные права на использование не предоставлены; решение о лицензировании остаётся за владельцем репозитория.
