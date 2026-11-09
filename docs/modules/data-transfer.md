@@ -8,17 +8,9 @@
 
 ## Публичные сервисы и функции
 
-- `if(error instanceof SnapshotValidationError): тип выводится TypeScript` — входные параметры и результат из TS-сигнатуры.
-- `for(const [kind,rows] of Object.entries(collections)): тип выводится TypeScript` — входные параметры и результат из TS-сигнатуры.
-- `if(value === null \|\| value === undefined): тип выводится TypeScript` — входные параметры и результат из TS-сигнатуры.
-- `if(!mapped): тип выводится TypeScript` — входные параметры и результат из TS-сигнатуры.
-- `for(const entity of collections): тип выводится TypeScript` — входные параметры и результат из TS-сигнатуры.
-- `if((await manager.getRepository(LifeArea).count({ where: { userId } })) > 0): тип выводится TypeScript` — входные параметры и результат из TS-сигнатуры.
-- `if(!match): тип выводится TypeScript` — входные параметры и результат из TS-сигнатуры.
-- `if(!type \|\| type !== match[1] \|\| buffer.length === 0 \|\| buffer.length > MAX_IMAGE_SIZE): тип выводится TypeScript` — входные параметры и результат из TS-сигнатуры.
-- `validate(userId: string, raw: unknown): Promise<ImportPreview>` — входные параметры и результат из TS-сигнатуры.
-- `import(userId: string, raw: unknown, idempotencyKey?: string): Promise<ImportResult>` — входные параметры и результат из TS-сигнатуры.
-- `export(userId: string): Promise<LifeStateV1>` — входные параметры и результат из TS-сигнатуры.
+- `validate(userId: string, raw: unknown): Promise<ImportPreview>` — проверяет формат, ссылки и количество сущностей без записи; при ошибке выбрасывает `UnprocessableEntityException`.
+- `import(userId: string, raw: unknown, idempotencyKey?: string): Promise<ImportResult>` — сохраняет допустимый снимок в транзакции с audit; `409` при непустом аккаунте/конфликте ключа, `422` при невалидной структуре, `503` при сбое хранилища.
+- `export(userId: string): Promise<LifeStateV1>` — консистентно читает данные аккаунта и включённые изображения; `413` при превышении лимита, `503` при ошибке S3.
 
 ## Модели и схемы данных, связи
 

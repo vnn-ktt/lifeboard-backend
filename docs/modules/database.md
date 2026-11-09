@@ -7,7 +7,7 @@
 ## Публичные сервисы и функции
 
 - `databaseOptions(config: DatabaseEnvironment): DataSourceOptions` — возвращает настройки PostgreSQL/TypeORM: подключения, SSL, пул, пути сущностей и миграций.
-- `AppDataSource` — точка доступа CLI TypeORM в `src/database/data-source.ts` (точное имя экспорта проверяй в исходнике).
+- `export default new DataSource(databaseOptions(environment))` — экземпляр DataSource для TypeORM CLI в `src/database/data-source.ts`.
 
 ## Модели/схемы данных и связи
 

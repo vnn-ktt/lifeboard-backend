@@ -8,8 +8,8 @@
 
 ## Публичные сервисы и функции
 
-- `list(userId: string, goalId: string): выводится TypeScript` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
-- `create(userId: string, goalId: string, input: CreateMetricEntryDto): выводится TypeScript` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
+- `list(userId: string, goalId: string): Promise<GoalMetricEntry[]> (HTTP DTO)` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
+- `create(userId: string, goalId: string, input: CreateMetricEntryDto): Promise<GoalMetricEntry> (HTTP DTO)` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
 - `remove(userId: string, goalId: string, entryId: string): Promise<void>` — параметры и возвращаемое значение указаны в сигнатуре; исключения см. ниже.
 
 ## Модели и схемы данных, связи
@@ -20,7 +20,13 @@ GoalMetricEntry.goalId,userId → LifeGoal; GoalCheckin.metricEntryId — nullab
 
 | Поле | TypeScript-тип |
 |---|---|
-
+| `id` | `string` (UUID) |
+| `userId` | `string` (UUID) |
+| `goalId` | `string` (UUID) |
+| `date` | `string` (YYYY-MM-DD) |
+| `value` | `number` |
+| `note` | `string | null` |
+| `createdAt` | `Date` |
 
 ## Зависимости
 
@@ -28,7 +34,7 @@ GoalMetricEntry.goalId,userId → LifeGoal; GoalCheckin.metricEntryId — nullab
 
 ## Конфигурация и переменные окружения
 
-Специфических переменных окружения нет.. Полные значения, обязательность и дефолты: [таблица ENV в README](../../README.md#конфигурация-env).
+Специфических переменных окружения нет. Полные значения, обязательность и дефолты: [таблица ENV в README](../../README.md#конфигурация-env).
 
 ## Обработка ошибок
 
