@@ -1,4 +1,4 @@
-# Lifeboard Backend v0.6.1 — Private File Storage
+# Lifeboard Backend v0.9.0 — Modular Monolith
 
 NestJS 11 · PostgreSQL 17 · TypeORM · Bun · Node.js 24 runtime · AWS SDK v3 · S3-compatible storage. Existing frontend remains unchanged.
 
@@ -266,3 +266,13 @@ The v0.8.0 backend adds authenticated CRUD for `notes` and `note-groups`, a read
 - Preferences: `GET/PUT /api/v1/users/me/preferences` with `theme`, `language`, `goalEntryMode`, `showHelper`, `privacy.showAvatar`, `privacy.maskStats`.
 
 See [v0.8.0 API and migration guide](docs/CONTENT-ACCOUNT-v0.8.0.md) and [Postman collection](postman/Lifeboard-v0.8.0-content-account.postman_collection.json). This release **does not** migrate browser localStorage; v0.9.0 will handle legacy IDs, data URLs and backups with explicit user approval.
+
+## v0.9.0 — Import / Export & Data Integrity
+
+The session-authenticated backend can now validate, import once, and export full Lifeboard v1 snapshots from frontend v0.17.1. This migration preserves the goal tree, dated metrics and check-ins, milestones and tasks, status timeline, routines/checks, reviews, notes, inlined note images (moved to private S3), system quote assignments and archived custom quotes.
+
+Endpoints under `/api/v1`: `POST /imports/lifeboard-v1/validate` (dry-run), `POST /imports/lifeboard-v1` (requires `X-Import-Confirmed: true`), and `GET /exports/lifeboard-v1` (full JSON). Import into nonempty personal workspaces is prohibited; duplicate imports are identified by user-scoped SHA-256 receipts and return the original ID map without re-creating records. `Idempotency-Key` header is supported.
+
+See **[docs/DATA-TRANSFER-v0.9.0.md](docs/DATA-TRANSFER-v0.9.0.md)** for security assumptions, migration semantics, current limits and Postman examples. The frontend is still local-first and must explicitly switch to API-backed state in a later release.
+
+Automated checks are configured in `.github/workflows/backend-ci.yml`; the PostgreSQL integration files execute serially to avoid concurrent migrations against the same test DB.

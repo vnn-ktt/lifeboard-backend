@@ -1,6 +1,6 @@
 {
   "name": "lifeboard-backend",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -15,10 +15,10 @@
     "db:revert": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts",
     "db:generate": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/database/data-source.ts",
     "db:migrate:prod": "node ./node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js",
-    "test": "node --test --require ts-node/register --require tsconfig-paths/register tests/password.test.ts tests/validation.test.ts tests/goals-validation.test.ts tests/architecture.test.ts tests/routines-validation.test.ts tests/progress-rules.test.ts tests/reviews-validation.test.ts tests/reviews-service.test.ts tests/files.test.ts tests/goal-checkins.test.ts tests/goal-metrics-validation.test.ts tests/goal-checkins-service.test.ts tests/goal-execution.test.ts tests/goal-execution-validation.test.ts tests/content-account.test.ts",
+    "test": "node --test --require ts-node/register --require tsconfig-paths/register tests/password.test.ts tests/validation.test.ts tests/goals-validation.test.ts tests/architecture.test.ts tests/routines-validation.test.ts tests/progress-rules.test.ts tests/reviews-validation.test.ts tests/reviews-service.test.ts tests/files.test.ts tests/goal-checkins.test.ts tests/goal-metrics-validation.test.ts tests/goal-checkins-service.test.ts tests/goal-execution.test.ts tests/goal-execution-validation.test.ts tests/content-account.test.ts tests/data-transfer.test.ts",
     "files:cleanup": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register src/cli/cleanup-files.ts",
     "files:cleanup:prod": "node dist/cli/cleanup-files.js",
-    "test:integration": "node --env-file=.env --test --require ts-node/register --require tsconfig-paths/register tests/integration/goal-checkins.pg.test.ts tests/integration/goal-execution.pg.test.ts tests/integration/content-account.pg.test.ts"
+    "test:integration": "node --env-file=.env --test --test-concurrency=1 --require ts-node/register --require tsconfig-paths/register tests/integration/goal-checkins.pg.test.ts tests/integration/goal-execution.pg.test.ts tests/integration/content-account.pg.test.ts tests/integration/data-transfer.pg.test.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

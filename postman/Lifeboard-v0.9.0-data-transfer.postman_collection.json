@@ -1,0 +1,332 @@
+{
+  "info": {
+    "name": "Lifeboard Backend v0.9.0 — Import / Export & Data Integrity",
+    "_postman_id": "0b2fe8a8-1be1-4144-a8a9-b50bb62f5ddf",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Backend v0.9.0 transactional one-time LifeState v1 import. Log in via real backend auth to obtain lifeboard.sid. Validate then import with confirmation; compare exported data after commit."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "email",
+      "value": "dev@example.org"
+    },
+    {
+      "key": "password",
+      "value": "password"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "lifeboard-v1-import-2026-11-09"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Login (real backend account)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "02 — Validate LifeState v1 (dry-run)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/imports/lifeboard-v1/validate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "imports",
+            "lifeboard-v1",
+            "validate"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": 1,\n  \"vision\": \"Build something useful\",\n  \"goals\": [\n    {\n      \"id\": \"dogs-goal\",\n      \"areaId\": \"dogs\",\n      \"title\": \"Train spaniels\",\n      \"description\": \"\",\n      \"horizon\": \"month\",\n      \"target\": 30,\n      \"createdAt\": \"2026-11-01T00:00:00\",\n      \"measurement\": {\n        \"kind\": \"activity\"\n      }\n    }\n  ],\n  \"routines\": [\n    {\n      \"id\": \"walk-routine\",\n      \"goalId\": \"dogs-goal\",\n      \"title\": \"Walk\",\n      \"description\": \"\",\n      \"time\": \"08:00\",\n      \"days\": [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7\n      ],\n      \"durationMinutes\": 30\n    }\n  ],\n  \"checks\": {\n    \"2026-11-08|walk-routine\": true\n  },\n  \"reviews\": [],\n  \"categories\": [],\n  \"goalMetricEntries\": [],\n  \"goalCheckins\": [],\n  \"milestones\": [],\n  \"goalTasks\": [],\n  \"goalStatusEvents\": [],\n  \"noteGroups\": [],\n  \"notes\": [],\n  \"focusGoalIds\": [\n    \"dogs-goal\"\n  ],\n  \"quoteAssignments\": {\n    \"dashboard\": \"quote-1\",\n    \"review\": null\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "03 — Import LifeState v1 (confirm)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Import-Confirmed",
+            "value": "true"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotencyKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/imports/lifeboard-v1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "imports",
+            "lifeboard-v1"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": 1,\n  \"vision\": \"Build something useful\",\n  \"goals\": [\n    {\n      \"id\": \"dogs-goal\",\n      \"areaId\": \"dogs\",\n      \"title\": \"Train spaniels\",\n      \"description\": \"\",\n      \"horizon\": \"month\",\n      \"target\": 30,\n      \"createdAt\": \"2026-11-01T00:00:00\",\n      \"measurement\": {\n        \"kind\": \"activity\"\n      }\n    }\n  ],\n  \"routines\": [\n    {\n      \"id\": \"walk-routine\",\n      \"goalId\": \"dogs-goal\",\n      \"title\": \"Walk\",\n      \"description\": \"\",\n      \"time\": \"08:00\",\n      \"days\": [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7\n      ],\n      \"durationMinutes\": 30\n    }\n  ],\n  \"checks\": {\n    \"2026-11-08|walk-routine\": true\n  },\n  \"reviews\": [],\n  \"categories\": [],\n  \"goalMetricEntries\": [],\n  \"goalCheckins\": [],\n  \"milestones\": [],\n  \"goalTasks\": [],\n  \"goalStatusEvents\": [],\n  \"noteGroups\": [],\n  \"notes\": [],\n  \"focusGoalIds\": [\n    \"dogs-goal\"\n  ],\n  \"quoteAssignments\": {\n    \"dashboard\": \"quote-1\",\n    \"review\": null\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "04 — Repeat same import (imported=false)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Import-Confirmed",
+            "value": "true"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotencyKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/imports/lifeboard-v1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "imports",
+            "lifeboard-v1"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": 1,\n  \"vision\": \"Build something useful\",\n  \"goals\": [\n    {\n      \"id\": \"dogs-goal\",\n      \"areaId\": \"dogs\",\n      \"title\": \"Train spaniels\",\n      \"description\": \"\",\n      \"horizon\": \"month\",\n      \"target\": 30,\n      \"createdAt\": \"2026-11-01T00:00:00\",\n      \"measurement\": {\n        \"kind\": \"activity\"\n      }\n    }\n  ],\n  \"routines\": [\n    {\n      \"id\": \"walk-routine\",\n      \"goalId\": \"dogs-goal\",\n      \"title\": \"Walk\",\n      \"description\": \"\",\n      \"time\": \"08:00\",\n      \"days\": [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7\n      ],\n      \"durationMinutes\": 30\n    }\n  ],\n  \"checks\": {\n    \"2026-11-08|walk-routine\": true\n  },\n  \"reviews\": [],\n  \"categories\": [],\n  \"goalMetricEntries\": [],\n  \"goalCheckins\": [],\n  \"milestones\": [],\n  \"goalTasks\": [],\n  \"goalStatusEvents\": [],\n  \"noteGroups\": [],\n  \"notes\": [],\n  \"focusGoalIds\": [\n    \"dogs-goal\"\n  ],\n  \"quoteAssignments\": {\n    \"dashboard\": \"quote-1\",\n    \"review\": null\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "05 — Import without confirmation (expect 428)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/imports/lifeboard-v1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "imports",
+            "lifeboard-v1"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": 1,\n  \"vision\": \"Build something useful\",\n  \"goals\": [\n    {\n      \"id\": \"dogs-goal\",\n      \"areaId\": \"dogs\",\n      \"title\": \"Train spaniels\",\n      \"description\": \"\",\n      \"horizon\": \"month\",\n      \"target\": 30,\n      \"createdAt\": \"2026-11-01T00:00:00\",\n      \"measurement\": {\n        \"kind\": \"activity\"\n      }\n    }\n  ],\n  \"routines\": [\n    {\n      \"id\": \"walk-routine\",\n      \"goalId\": \"dogs-goal\",\n      \"title\": \"Walk\",\n      \"description\": \"\",\n      \"time\": \"08:00\",\n      \"days\": [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7\n      ],\n      \"durationMinutes\": 30\n    }\n  ],\n  \"checks\": {\n    \"2026-11-08|walk-routine\": true\n  },\n  \"reviews\": [],\n  \"categories\": [],\n  \"goalMetricEntries\": [],\n  \"goalCheckins\": [],\n  \"milestones\": [],\n  \"goalTasks\": [],\n  \"goalStatusEvents\": [],\n  \"noteGroups\": [],\n  \"notes\": [],\n  \"focusGoalIds\": [\n    \"dogs-goal\"\n  ],\n  \"quoteAssignments\": {\n    \"dashboard\": \"quote-1\",\n    \"review\": null\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "06 — Import different snapshot with same key (expect 409)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Import-Confirmed",
+            "value": "true"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotencyKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/imports/lifeboard-v1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "imports",
+            "lifeboard-v1"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": 1,\n  \"vision\": \"A different snapshot\",\n  \"goals\": [\n    {\n      \"id\": \"dogs-goal\",\n      \"areaId\": \"dogs\",\n      \"title\": \"Train spaniels\",\n      \"description\": \"\",\n      \"horizon\": \"month\",\n      \"target\": 30,\n      \"createdAt\": \"2026-11-01T00:00:00\",\n      \"measurement\": {\n        \"kind\": \"activity\"\n      }\n    }\n  ],\n  \"routines\": [\n    {\n      \"id\": \"walk-routine\",\n      \"goalId\": \"dogs-goal\",\n      \"title\": \"Walk\",\n      \"description\": \"\",\n      \"time\": \"08:00\",\n      \"days\": [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7\n      ],\n      \"durationMinutes\": 30\n    }\n  ],\n  \"checks\": {\n    \"2026-11-08|walk-routine\": true\n  },\n  \"reviews\": [],\n  \"categories\": [],\n  \"goalMetricEntries\": [],\n  \"goalCheckins\": [],\n  \"milestones\": [],\n  \"goalTasks\": [],\n  \"goalStatusEvents\": [],\n  \"noteGroups\": [],\n  \"notes\": [],\n  \"focusGoalIds\": [\n    \"dogs-goal\"\n  ],\n  \"quoteAssignments\": {\n    \"dashboard\": \"quote-1\",\n    \"review\": null\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "07 — Export LifeState v1 JSON",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exports/lifeboard-v1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exports",
+            "lifeboard-v1"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login."
+      }
+    },
+    {
+      "name": "08 — Export without login (expect 401, delete cookie first)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exports/lifeboard-v1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exports",
+            "lifeboard-v1"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login."
+      }
+    },
+    {
+      "name": "09 — Bad references (expect 422)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/imports/lifeboard-v1/validate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "imports",
+            "lifeboard-v1",
+            "validate"
+          ]
+        },
+        "description": "Uses authenticated lifeboard.sid session cookie. Do not use local demo login.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": 1,\n  \"vision\": \"Build something useful\",\n  \"goals\": [\n    {\n      \"id\": \"dogs-goal\",\n      \"areaId\": \"dogs\",\n      \"title\": \"Train spaniels\",\n      \"description\": \"\",\n      \"horizon\": \"month\",\n      \"target\": 30,\n      \"createdAt\": \"2026-11-01T00:00:00\",\n      \"measurement\": {\n        \"kind\": \"activity\"\n      }\n    }\n  ],\n  \"routines\": [\n    {\n      \"id\": \"walk-routine\",\n      \"goalId\": \"dogs-goal\",\n      \"title\": \"Walk\",\n      \"description\": \"\",\n      \"time\": \"08:00\",\n      \"days\": [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7\n      ],\n      \"durationMinutes\": 30\n    }\n  ],\n  \"checks\": {\n    \"2026-11-08|invalid-routine\": true\n  },\n  \"reviews\": [],\n  \"categories\": [],\n  \"goalMetricEntries\": [],\n  \"goalCheckins\": [],\n  \"milestones\": [],\n  \"goalTasks\": [],\n  \"goalStatusEvents\": [],\n  \"noteGroups\": [],\n  \"notes\": [],\n  \"focusGoalIds\": [\n    \"dogs-goal\"\n  ],\n  \"quoteAssignments\": {\n    \"dashboard\": \"quote-1\",\n    \"review\": null\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

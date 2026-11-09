@@ -23,6 +23,7 @@ import { NotesModule } from '@/notes/notes.module';
 import { NoteGroupsModule } from '@/note-groups/note-groups.module';
 import { QuotesModule } from '@/quotes/quotes.module';
 import { PreferencesModule } from '@/preferences/preferences.module';
+import { DataTransferModule } from '@/data-transfer/data-transfer.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { PreferencesModule } from '@/preferences/preferences.module';
     NoteGroupsModule,
     QuotesModule,
     PreferencesModule,
+    DataTransferModule,
   ],
 })
 export class AppModule {}
