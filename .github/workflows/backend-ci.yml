@@ -1,0 +1,76 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: lifeboard_ci
+          POSTGRES_USER: lifeboard_ci
+          POSTGRES_PASSWORD: lifeboard_ci_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U lifeboard_ci -d lifeboard_ci"
+          --health-interval=5s --health-timeout=3s --health-retries=15
+    env:
+      NODE_ENV: test
+      PORT: '3000'
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_USER: lifeboard_ci
+      DB_PASSWORD: lifeboard_ci_test_only
+      DB_NAME: lifeboard_ci
+      DB_POOL_SIZE: '5'
+      DB_SSL: 'false'
+      WEB_ORIGIN: http://localhost:8080
+      COOKIE_SECURE: 'false'
+      S3_ENDPOINT: http://127.0.0.1:8333
+      S3_REGION: ru-central1
+      S3_BUCKET: lifeboard-dev
+      S3_ACCESS_KEY_ID: lifeboard-ci
+      S3_SECRET_ACCESS_KEY: ci-only-secret
+      S3_FORCE_PATH_STYLE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies with Bun
+        run: bun install
+      - name: Prepare dedicated integration database
+        env:
+          PGPASSWORD: lifeboard_ci_test_only
+        run: |
+          touch .env
+          psql -h 127.0.0.1 -U lifeboard_ci -d postgres -c 'CREATE DATABASE lifeboard_test;'
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Unit tests
+        run: bun run test
+      - name: Compile
+        run: bun run build
+      - name: PostgreSQL integration tests (serial)
+        env:
+          TEST_DB_NAME: lifeboard_test
+        run: bun run test:integration
+      - name: Ensure checked-in Bun lockfile is reproducible
+        run: git diff --exit-code -- bun.lock
+      - name: Upload generated lockfile for lockfile recovery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bun-lockfile
+          path: bun.lock
+          if-no-files-found: ignore

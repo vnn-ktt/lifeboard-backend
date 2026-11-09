@@ -3,11 +3,16 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from '@/app.module';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  // Local LifeState v1 backups can contain inline images (~5 MB). Nest's default is 100 KB.
+  app.use('/api/v1/imports/lifeboard-v1', json({ limit: '5mb' }));
+  app.use(json({ limit: '100kb' }));
+  app.use(urlencoded({ extended: true, limit: '100kb' }));
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
@@ -22,7 +27,7 @@ async function bootstrap(): Promise<void> {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Lifeboard REST API')
     .setDescription('Private session-based Lifeboard API. Authentication requires a lifeboard.sid cookie.')
-    .setVersion('0.8.0')
+    .setVersion('0.9.0')
     .addCookieAuth('lifeboard.sid', { type: 'apiKey', in: 'cookie', name: 'lifeboard.sid' }, 'lifeboard.sid')
     .build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig), {
