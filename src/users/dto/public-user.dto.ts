@@ -7,6 +7,8 @@ export type PublicUser = {
   name: string;
   nickname: string;
   about: string;
+  avatar: string | null;
+  avatarFileId: string | null;
   timezone: string;
   createdAt: string;
   updatedAt: string;
@@ -19,6 +21,8 @@ export function toPublicUser(user: User): PublicUser {
     name: user.name,
     nickname: user.nickname ?? '',
     about: user.about,
+    avatarFileId: user.avatarFileId ?? null,
+    avatar: user.avatarFileId ? `/api/v1/files/${user.avatarFileId}/content` : null,
     timezone: user.timezone,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

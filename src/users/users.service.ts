@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { StoredFile } from '@/files/entities/stored-file.entity';
+import type { UpdateProfileDto } from '@/users/dto/update-profile.dto';
 import type { NewUser } from './types/new-user.type';
 import { UserWriteLock } from '@/common/user-write-lock/user-write-lock.service';
 
@@ -24,6 +26,29 @@ export class UsersService {
     });
   }
 
+  updateProfile(userId: string, input: UpdateProfileDto): Promise<User> {
+    return this.lock.run(userId, async manager => {
+      const repo = manager.getRepository(User);
+      const user = await repo.findOneByOrFail({ id: userId });
+      if (input.name !== undefined) user.name = input.name;
+      if (input.nickname !== undefined) user.nickname = input.nickname;
+      if (input.about !== undefined) user.about = input.about;
+      return repo.save(user);
+    });
+  }
+
+  setAvatar(userId: string, fileId: string | null): Promise<User> {
+    return this.lock.run(userId, async manager => {
+      if (fileId && !(await manager.getRepository(StoredFile).findOneBy({ id: fileId, userId }))) {
+        throw new NotFoundException('Image file not found');
+      }
+      const repo = manager.getRepository(User);
+      const user = await repo.findOneByOrFail({ id: userId });
+      user.avatarFileId = fileId;
+      return repo.save(user);
+    });
+  }
+
   findById(id: string): Promise<User | null> {
     return this.users.findOneBy({ id });
   }
@@ -37,6 +62,7 @@ export class UsersService {
         nickname: input.nickname,
         about: '',
         timezone: 'UTC',
+        avatarFileId: null,
         passwordHash: input.passwordHash,
       }));
     } catch (error: unknown) {

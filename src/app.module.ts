@@ -19,6 +19,10 @@ import { GoalCheckinsModule } from '@/goal-checkins/goal-checkins.module';
 import { GoalStatusModule } from '@/goal-status/goal-status.module';
 import { MilestonesModule } from '@/milestones/milestones.module';
 import { TasksModule } from '@/tasks/tasks.module';
+import { NotesModule } from '@/notes/notes.module';
+import { NoteGroupsModule } from '@/note-groups/note-groups.module';
+import { QuotesModule } from '@/quotes/quotes.module';
+import { PreferencesModule } from '@/preferences/preferences.module';
 
 @Module({
   imports: [
@@ -55,6 +59,10 @@ import { TasksModule } from '@/tasks/tasks.module';
     GoalStatusModule,
     MilestonesModule,
     TasksModule,
+    NotesModule,
+    NoteGroupsModule,
+    QuotesModule,
+    PreferencesModule,
   ],
 })
 export class AppModule {}

@@ -1,0 +1,553 @@
+{
+  "info": {
+    "name": "Lifeboard Backend v0.8.0 — Content & Account",
+    "_postman_id": "23ea2b40-7551-4ef2-987c-8d9ac1e76a80",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/auth/register",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-v080@example.org\",\n  \"password\": \"YourStrongPassword1!\",\n  \"name\": \"Demo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/auth/login",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-v080@example.org\",\n  \"password\": \"YourStrongPassword1!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/users/me",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Files and avatar",
+      "item": [
+        {
+          "name": "Upload image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{apiBase}}/files",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set(\"fileId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get image",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/files/{{fileId}}/content",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        },
+        {
+          "name": "Assign avatar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/users/me/avatar",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileId\": \"{{fileId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove avatar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/users/me/avatar",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Note groups",
+      "item": [
+        {
+          "name": "List groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/note-groups",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        },
+        {
+          "name": "Create group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/note-groups",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Product research\",\n  \"color\": \"#336699\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set(\"groupId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rename group",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/note-groups/{{groupId}}",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Product planning\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove group (notes remain)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{apiBase}}/note-groups/{{groupId}}",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notes",
+      "item": [
+        {
+          "name": "List notes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/notes",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        },
+        {
+          "name": "List pinned notes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/notes?pinned=true",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        },
+        {
+          "name": "Create note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/notes",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Release checklist\",\n  \"content\": \"Review changes and smoke-test\",\n  \"groupId\": \"{{groupId}}\",\n  \"imageFileId\": \"{{fileId}}\",\n  \"pinned\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) pm.collectionVariables.set(\"noteId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get note",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/notes/{{noteId}}",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        },
+        {
+          "name": "Update note",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/notes/{{noteId}}",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated content\",\n  \"pinned\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Detach image",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/notes/{{noteId}}",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageFileId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove note",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{apiBase}}/notes/{{noteId}}",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        }
+      ]
+    },
+    {
+      "name": "System quotes",
+      "item": [
+        {
+          "name": "Catalog RU EN DE",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/quotes",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        },
+        {
+          "name": "Quote assignments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/quotes/assignments",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        },
+        {
+          "name": "Set dashboard quote and hide review",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/quotes/assignments",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dashboard\": \"quote-5\",\n  \"review\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Reset review to system quote",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/quotes/assignments",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review\": \"quote-11\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Reject unknown quote (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/quotes/assignments",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dashboard\": \"bad-quote\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile & preferences",
+      "item": [
+        {
+          "name": "Update profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/users/me",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Product owner\",\n  \"nickname\": \"builder\",\n  \"about\": \"Working on MVP\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get preferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiBase}}/users/me/preferences",
+            "description": "Requires lifeboard.sid cookie unless register/login."
+          }
+        },
+        {
+          "name": "Update preferences",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/users/me/preferences",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"theme\": \"dark\",\n  \"language\": \"ru\",\n  \"goalEntryMode\": \"wizard\",\n  \"showHelper\": true,\n  \"privacy\": {\n    \"showAvatar\": true,\n    \"maskStats\": false\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update only privacy",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{apiBase}}/users/me/preferences",
+            "description": "Requires lifeboard.sid cookie unless register/login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"privacy\": {\n    \"maskStats\": true\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "apiBase",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "groupId",
+      "value": ""
+    },
+    {
+      "key": "noteId",
+      "value": ""
+    },
+    {
+      "key": "fileId",
+      "value": ""
+    }
+  ]
+}
