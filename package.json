@@ -1,6 +1,6 @@
 {
   "name": "lifeboard-backend",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -18,31 +18,34 @@
     "test": "node --test --require ts-node/register --require tsconfig-paths/register tests/password.test.ts tests/validation.test.ts tests/goals-validation.test.ts tests/architecture.test.ts tests/routines-validation.test.ts tests/progress-rules.test.ts tests/reviews-validation.test.ts tests/reviews-service.test.ts tests/files.test.ts tests/goal-checkins.test.ts tests/goal-metrics-validation.test.ts tests/goal-checkins-service.test.ts tests/goal-execution.test.ts tests/goal-execution-validation.test.ts tests/content-account.test.ts tests/data-transfer.test.ts",
     "files:cleanup": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register src/cli/cleanup-files.ts",
     "files:cleanup:prod": "node dist/cli/cleanup-files.js",
-    "test:integration": "node --env-file=.env --test --test-concurrency=1 --require ts-node/register --require tsconfig-paths/register tests/integration/goal-checkins.pg.test.ts tests/integration/goal-execution.pg.test.ts tests/integration/content-account.pg.test.ts tests/integration/data-transfer.pg.test.ts"
+    "test:integration": "node --env-file=.env --test --test-concurrency=1 --require ts-node/register --require tsconfig-paths/register tests/integration/goal-checkins.pg.test.ts tests/integration/goal-execution.pg.test.ts tests/integration/content-account.pg.test.ts tests/integration/data-transfer.pg.test.ts",
+    "lint": "node scripts/check-repository.mjs",
+    "test:e2e": "node --env-file=.env --test --require ts-node/register --require tsconfig-paths/register tests/e2e/http-smoke.e2e.test.ts",
+    "test:coverage": "node --experimental-test-coverage --test --require ts-node/register --require tsconfig-paths/register tests/password.test.ts tests/validation.test.ts tests/goals-validation.test.ts tests/architecture.test.ts tests/routines-validation.test.ts tests/progress-rules.test.ts tests/reviews-validation.test.ts tests/reviews-service.test.ts tests/files.test.ts tests/goal-checkins.test.ts tests/goal-metrics-validation.test.ts tests/goal-checkins-service.test.ts tests/goal-execution.test.ts tests/goal-execution-validation.test.ts tests/content-account.test.ts tests/data-transfer.test.ts"
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/typeorm": "^11.0.0",
-    "pg": "^8.16.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "typeorm": "^0.3.28",
-    "@nestjs/throttler": "^6.7.1",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.2",
-    "@aws-sdk/client-s3": "^3.800.0",
-    "@nestjs/swagger": "^11.0.0"
+    "@nestjs/common": "11.2.8",
+    "@nestjs/config": "4.0.4",
+    "@nestjs/core": "11.2.8",
+    "@nestjs/platform-express": "11.2.8",
+    "@nestjs/typeorm": "11.0.3",
+    "pg": "8.23.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "typeorm": "0.3.31",
+    "@nestjs/throttler": "6.7.1",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.14.4",
+    "@aws-sdk/client-s3": "3.1162.0",
+    "@nestjs/swagger": "11.4.8"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "ts-node": "^10.9.2",
-    "typescript": "~5.9.3",
-    "@types/express": "^5.0.0",
-    "tsconfig-paths": "^4.2.0",
-    "tsc-alias": "^1.8.16",
-    "@types/multer": "^2.0.0"
+    "@types/node": "24.19.2",
+    "ts-node": "10.9.2",
+    "typescript": "5.9.3",
+    "@types/express": "5.0.6",
+    "tsconfig-paths": "4.2.0",
+    "tsc-alias": "1.9.10",
+    "@types/multer": "2.3.0"
   }
 }

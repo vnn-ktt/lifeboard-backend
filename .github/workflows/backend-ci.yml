@@ -48,13 +48,15 @@ jobs:
         with:
           node-version: '24'
       - name: Install dependencies with Bun
-        run: bun install
+        run: bun install --frozen-lockfile
       - name: Prepare dedicated integration database
         env:
           PGPASSWORD: lifeboard_ci_test_only
         run: |
           touch .env
           psql -h 127.0.0.1 -U lifeboard_ci -d postgres -c 'CREATE DATABASE lifeboard_test;'
+      - name: Release hygiene and API docs
+        run: bun run lint
       - name: Typecheck
         run: bun run typecheck
       - name: Unit tests
@@ -65,6 +67,12 @@ jobs:
         env:
           TEST_DB_NAME: lifeboard_test
         run: bun run test:integration
+      - name: HTTP end-to-end smoke
+        env:
+          DB_NAME: lifeboard_test
+        run: bun run test:e2e
+      - name: Unit coverage report
+        run: bun run test:coverage
       - name: Ensure checked-in Bun lockfile is reproducible
         run: git diff --exit-code -- bun.lock
       - name: Upload generated lockfile for lockfile recovery
